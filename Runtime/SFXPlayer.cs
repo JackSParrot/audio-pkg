@@ -7,17 +7,34 @@ namespace JackSParrot.Services.Audio
 {
     public class SFXPlayer : IUpdatable, IDisposable
     {
+        float _volume = 1f;
+        public float Volume
+        {
+            get
+            {
+                return _volume;
+            }
+            set
+            {
+                _volume = value;
+                foreach(var handler in _handlers)
+                {
+                    handler.Volume = _volume;
+                }
+            }
+        }
         AudioClipsStorer _clipStorer = null;
         List<AudioClipHandler> _handlers = new List<AudioClipHandler>();
         int _idGenerator = 0;
-
-        public SFXPlayer(AudioClipsStorer clipsStorer)
+        internal SFXPlayer(AudioClipsStorer clipsStorer)
         {
-            if(SharedServices.GetService<IUpdateScheduler>() == null)
+            var updater = SharedServices.GetService<IUpdateScheduler>();
+            if (updater == null)
             {
-                SharedServices.RegisterService<IUpdateScheduler>(new UnityUpdateScheduler());
+                updater = new UnityUpdateScheduler();
+                SharedServices.RegisterService(updater);
             }
-            SharedServices.GetService<IUpdateScheduler>().ScheduleUpdate(this);
+            updater.ScheduleUpdate(this);
             _clipStorer = clipsStorer;
             for(int i = 0; i < 10; ++i)
             {
@@ -42,7 +59,7 @@ namespace JackSParrot.Services.Audio
 
         AudioClipHandler CreateHandler()
         {
-            var new_handler = new GameObject("sfx_clip").AddComponent<AudioClipHandler>();
+            var new_handler = new GameObject("sfx_handler").AddComponent<AudioClipHandler>();
             new_handler.transform.position = Vector3.zero;
             new_handler.IsAlive = false;
             _handlers.Add(new_handler);

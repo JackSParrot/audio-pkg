@@ -6,6 +6,22 @@ namespace JackSParrot.Services.Audio
 {
     public class AudioClipHandler : MonoBehaviour
     {
+        float _volume = 1f;
+        public float Volume
+        {
+            get
+            {
+                return _volume;
+            }
+            set
+            {
+                _volume = value;
+                if(_current != null)
+                {
+                    _source.volume = _current.Volume * _volume;
+                }
+            }
+        }
         public bool IsAlive
         {
             get
@@ -33,7 +49,6 @@ namespace JackSParrot.Services.Audio
                 Id = -1;
             }
         }
-
         public int Id = -1;
 
         Transform _toFollow = null;
@@ -82,12 +97,11 @@ namespace JackSParrot.Services.Audio
             }
             gameObject.SetActive(true);
             gameObject.name = _current.ClipName;
-            _source.volume = _current.Volume;
+            _source.volume = _current.Volume * _volume;
             _source.pitch = _current.Pitch;
             _source.clip = handler.Result;
             _source.loop = _current.Loop;
             _source.spatialBlend = 0f;
-            _source.outputAudioMixerGroup = _current.OutputMixer;
             _source.Play();
             _toFollow = null;
             _looping = _current.Loop;

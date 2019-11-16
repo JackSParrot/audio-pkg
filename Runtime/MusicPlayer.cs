@@ -8,24 +8,42 @@ namespace JackSParrot.Services.Audio
 {
     public class MusicPlayer : IDisposable
     {
+        float _volume = 1f;
+        public float Volume
+        {
+            get
+            {
+                return _volume;
+            }
+            set
+            {
+                _volume = value;
+                if(_playingClip != null)
+                {
+                    _source.volume *= _playingClip.Volume * _volume;
+                }
+            }
+        }
+
         AudioSource _source = null;
         AudioClipsStorer _clipStorer = null;
 
-        float _volume = 1.0f;
         SFXData _playingClip = null;
 
-        public MusicPlayer(AudioClipsStorer clipStorer)
+        internal MusicPlayer(AudioClipsStorer clipStorer)
         {
             if (SharedServices.GetService<CoroutineRunner>() == null)
             {
                 SharedServices.RegisterService(new CoroutineRunner());
             }
+            _clipStorer = clipStorer;
             _source = new GameObject("MusicPlayer").AddComponent<AudioSource>();
             UnityEngine.Object.DontDestroyOnLoad(_source.gameObject);
-            _clipStorer = clipStorer;
+            _source.playOnAwake = false;
+            _source.spatialBlend = 0f;
         }
 
-        public void PlayMusic(string name)
+        public void Play(string name)
         {
             if(_playingClip != null && string.Equals(name, _playingClip.ClipName, StringComparison.InvariantCultureIgnoreCase))
             {
@@ -56,18 +74,17 @@ namespace JackSParrot.Services.Audio
             }
             if (_playingClip == null)
             {
+                SharedServices.GetService<ICustomLogger>()?.LogError("Cannot load audio clip: " + _playingClip.ClipName);
                 return;
             }
-            _volume = _playingClip.Volume;
             _source.clip = handler.Result;
             _source.loop = _playingClip.Loop;
             _source.pitch = _playingClip.Pitch;
-            _source.volume = _volume;
-            _source.outputAudioMixerGroup = _playingClip.OutputMixer;
+            _source.volume = _playingClip.Volume * _volume;
             _source.Play();
         }
 
-        public void CrossFade(string name, float duration = 0.3f)
+        public void CrossFade(string name, float duration)
         {
             SharedServices.GetService<CoroutineRunner>().StopAllCoroutines(this);
             SharedServices.GetService<CoroutineRunner>().StartCoroutine(this, CrossFadeCoroutine(name, duration));
@@ -78,7 +95,7 @@ namespace JackSParrot.Services.Audio
             float halfDuraion = duration * 0.5f;
             SharedServices.GetService<CoroutineRunner>().StartCoroutine(this, FadeOutCoroutine(halfDuraion));
             yield return new WaitForSeconds(halfDuraion);
-            PlayMusic(fadeTo);
+            Play(fadeTo);
             SharedServices.GetService<CoroutineRunner>().StartCoroutine(this, FadeInCoroutine(halfDuraion));
         }
 

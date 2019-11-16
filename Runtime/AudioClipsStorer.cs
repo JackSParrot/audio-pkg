@@ -7,14 +7,21 @@ using JackSParrot.Utils;
 [System.Serializable]
 public class SFXData
 {
-    public string ClipName = string.Empty;
-    public AssetReference ReferencedClip = null;
-    public AudioMixerGroup OutputMixer = null;
+    public string ClipName;
+    public AssetReference ReferencedClip;
     [Range(0f, 1f)]
-    public float Volume = 1f;
+    public float Volume;
     [Range(.3f, 3f)]
-    public float Pitch = 1f;
-    public bool Loop = false;
+    public float Pitch;
+    public bool Loop;
+    public SFXData()
+    {
+        ClipName = string.Empty;
+        ReferencedClip = null;
+        Volume = 1f;
+        Pitch = 1f;
+        Loop = false;
+    }
 }
 
 [CreateAssetMenu(fileName = "ClipStorer", menuName = "Audio/ClipStorer", order = 1)]
