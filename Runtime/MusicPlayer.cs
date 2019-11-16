@@ -20,7 +20,7 @@ namespace JackSParrot.Services.Audio
                 _volume = value;
                 if(_playingClip != null)
                 {
-                    _source.volume *= _playingClip.Volume * _volume;
+                    _source.volume = _playingClip.Volume * _volume;
                 }
             }
         }
