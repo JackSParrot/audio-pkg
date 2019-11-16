@@ -50,7 +50,7 @@ namespace JackSParrot.Services.Audio
             set
             {
                 _musicVolume = Mathf.Clamp(value, 0f, 1f);
-                _sfxPlayer.Volume = _musicVolume * _volume;
+                _musicPlayer.Volume = _musicVolume * _volume;
             }
         }
 
