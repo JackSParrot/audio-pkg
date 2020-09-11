@@ -62,22 +62,17 @@ namespace JackSParrot.Services.Audio
             }
             var clip = _clipStorer.GetClipByName(name);
             _playingClip = clip;
-            clip.ReferencedClip.LoadAssetAsync<AudioClip>().Completed += OnClipLoaded;
+            clip.ReferencedClip.LoadAssetAsync<AudioClip>().Completed += h => OnClipLoaded(h.Result);
         }
 
-        void OnClipLoaded(AsyncOperationHandle<AudioClip> handler)
+        void OnClipLoaded(AudioClip clip)
         {
-            if (handler.Result == null)
+            if (clip == null)
             {
                 SharedServices.GetService<ICustomLogger>()?.LogError("Cannot load audio clip: " + _playingClip.ClipName);
                 return;
             }
-            if (_playingClip == null)
-            {
-                SharedServices.GetService<ICustomLogger>()?.LogError("Cannot load audio clip: " + _playingClip.ClipName);
-                return;
-            }
-            _source.clip = handler.Result;
+            _source.clip = clip;
             _source.loop = _playingClip.Loop;
             _source.pitch = _playingClip.Pitch;
             _source.volume = _playingClip.Volume * _volume;

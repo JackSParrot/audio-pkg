@@ -16,40 +16,16 @@ namespace JackSParrot.Services.Audio
             set
             {
                 _volume = value;
-                if(_current != null)
+                if(data != null)
                 {
-                    _source.volume = _current.Volume * _volume;
+                    _source.volume = data.Volume * _volume;
                 }
             }
         }
-        public bool IsAlive
-        {
-            get
-            {
-                return _elapsed < _duration || _looping;
-            }
-            set
-            {
-                if(value)
-                {
-                    return;
-                }
-                if(_current != null)
-                {
-                    _current.ReferencedClip.ReleaseAsset();
-                    _current = null;
-                }
-                _source.Stop();
-                _looping = false;
-                _elapsed = 0f;
-                _duration = 0f;
-                _toFollow = null;
-                _transform.localPosition = Vector3.zero;
-                gameObject.SetActive(false);
-                Id = -1;
-            }
-        }
+
+        public bool IsAlive => _elapsed < _duration || _looping;
         public int Id = -1;
+        public SFXData data { get; private set; } = null;
 
         Transform _toFollow = null;
         Transform _transform;
@@ -57,7 +33,6 @@ namespace JackSParrot.Services.Audio
         float _elapsed = 0f;
         float _duration = 0f;
         bool _looping = false;
-        SFXData _current = null;
 
         void Awake()
         {
@@ -66,6 +41,19 @@ namespace JackSParrot.Services.Audio
             {
                 _source = gameObject.AddComponent<AudioSource>();
             }
+        }
+
+        public void Reset()
+        {
+            data = null;
+            _source.Stop();
+            _looping = false;
+            _elapsed = 0f;
+            _duration = 0f;
+            _toFollow = null;
+            _transform.localPosition = Vector3.zero;
+            gameObject.SetActive(false);
+            Id = -1;
         }
 
         public void UpdateHandler(float deltaTime)
@@ -79,33 +67,36 @@ namespace JackSParrot.Services.Audio
 
         public void Play(SFXData data)
         {
-            _current = data;
+            this.data = data;
             _duration = 9999f;
-            _current.ReferencedClip.LoadAssetAsync<AudioClip>().Completed += OnLoaded;
+            if (data.ReferencedClip.Asset != null)
+            {
+                OnLoaded(data.ReferencedClip.Asset as AudioClip);
+            }
+            else
+            {
+                data.ReferencedClip.LoadAssetAsync<AudioClip>().Completed += h => OnLoaded(h.Result);
+            }
         }
 
-        void  OnLoaded(AsyncOperationHandle<AudioClip> handler)
+        void OnLoaded(AudioClip clip)
         {
-            if(handler.Result == null)
+            if (clip == null)
             {
-                SharedServices.GetService<ICustomLogger>()?.LogError("Cannot load audio clip: " + _current.ClipName);
-                return;
-            }
-            if (_current == null)
-            {
+                SharedServices.GetService<ICustomLogger>()?.LogError("Cannot load audio clip: " + data.ClipName);
                 return;
             }
             gameObject.SetActive(true);
-            gameObject.name = _current.ClipName;
-            _source.volume = _current.Volume * _volume;
-            _source.pitch = _current.Pitch;
-            _source.clip = handler.Result;
-            _source.loop = _current.Loop;
+            gameObject.name = data.ClipName;
+            _source.volume = data.Volume * _volume;
+            _source.pitch = data.Pitch;
+            _source.clip = clip;
+            _source.loop = data.Loop;
             _source.spatialBlend = 0f;
             _source.Play();
             _toFollow = null;
-            _looping = _current.Loop;
-            _duration = handler.Result.length;
+            _looping = data.Loop;
+            _duration = clip.length;
         }
 
         public void Play(SFXData data, Vector3 position)

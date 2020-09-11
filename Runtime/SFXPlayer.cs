@@ -23,8 +23,10 @@ namespace JackSParrot.Services.Audio
                 }
             }
         }
+
         AudioClipsStorer _clipStorer = null;
         List<AudioClipHandler> _handlers = new List<AudioClipHandler>();
+        Dictionary<SFXData, int> _loadedClips = new Dictionary<SFXData, int>();
         int _idGenerator = 0;
         internal SFXPlayer(AudioClipsStorer clipsStorer)
         {
@@ -34,7 +36,15 @@ namespace JackSParrot.Services.Audio
                 updater = new UnityUpdateScheduler();
                 SharedServices.RegisterService(updater);
             }
+            var dispatcher = SharedServices.GetService<EventDispatcher>();
+            if(dispatcher == null)
+            {
+                dispatcher = new EventDispatcher();
+                SharedServices.RegisterService(dispatcher);
+            }
+
             updater.ScheduleUpdate(this);
+            dispatcher.AddListener<SceneManagementService.SceneUnloadedEvent>(OnSceneUnloaded);
             _clipStorer = clipsStorer;
             for(int i = 0; i < 10; ++i)
             {
@@ -49,19 +59,37 @@ namespace JackSParrot.Services.Audio
                 if (handler.IsAlive)
                 {
                     handler.UpdateHandler(deltaTime);
-                }
-                else if(handler.gameObject.activeSelf)
-                {
-                    handler.IsAlive = false;
+                    if(!handler.IsAlive)
+                    {
+                        StopPlaying(handler);
+                    }
                 }
             }
+        }
+
+        public void ReleaseReferenceCache()
+        {
+            foreach(var kvp in _loadedClips)
+            {
+                if(kvp.Value < 1)
+                {
+                    if(kvp.Key.ReferencedClip.Asset != null)
+                    {
+                        kvp.Key.ReferencedClip.ReleaseAsset();
+                    }
+                }
+            }
+        }
+
+        void OnSceneUnloaded(SceneManagementService.SceneUnloadedEvent e)
+        {
+            ReleaseReferenceCache();
         }
 
         AudioClipHandler CreateHandler()
         {
             var new_handler = new GameObject("sfx_handler").AddComponent<AudioClipHandler>();
-            new_handler.transform.position = Vector3.zero;
-            new_handler.IsAlive = false;
+            new_handler.Reset();
             _handlers.Add(new_handler);
             new_handler.Id = _idGenerator++;
             UnityEngine.Object.DontDestroyOnLoad(new_handler.gameObject);
@@ -81,36 +109,65 @@ namespace JackSParrot.Services.Audio
             return CreateHandler();
         }
 
+        SFXData GetClipToPlay(string name)
+        {
+            foreach(var kvp in _loadedClips)
+            {
+                if(kvp.Key.ClipName.Equals(name))
+                {
+                    _loadedClips[kvp.Key] += 1;
+                    return kvp.Key;
+                }
+            }
+            var sfx = _clipStorer.GetClipByName(name);
+            _loadedClips.Add(sfx, 1);
+            return sfx;
+        }
+
+        void ReleasePlayingClip(SFXData clip)
+        {
+            if(clip != null && _loadedClips.ContainsKey(clip))
+            {
+                _loadedClips[clip] = Mathf.Max(0, _loadedClips[clip]);
+            }
+        }
+
         public int Play(string clipName)
         {
             var handler = GetFreeHandler();
-            handler.Play(_clipStorer.GetClipByName(clipName));
+            handler.Play(GetClipToPlay(clipName));
             return handler.Id;
         }
 
         public int Play(string clipName, Transform toFollow)
         {
             var handler = GetFreeHandler();
-            handler.Play(_clipStorer.GetClipByName(clipName), toFollow);
+            handler.Play(GetClipToPlay(clipName), toFollow);
             return handler.Id;
         }
 
         public int Play(string clipName, Vector3 at)
         {
             var handler = GetFreeHandler();
-            handler.Play(_clipStorer.GetClipByName(clipName), at);
+            handler.Play(GetClipToPlay(clipName), at);
             return handler.Id;
         }
 
         public void StopPlaying(int id)
         {
-            foreach(var handler in _handlers)
+            foreach (var handler in _handlers)
             {
-                if(handler.Id == id)
+                if (handler.Id == id)
                 {
-                    handler.IsAlive = false;
+                    StopPlaying(handler);
                 }
             }
+        }
+
+        void StopPlaying(AudioClipHandler handler)
+        {
+            handler.Reset();
+            ReleasePlayingClip(handler.data);
         }
 
         public void Dispose()
@@ -120,6 +177,7 @@ namespace JackSParrot.Services.Audio
             {
                 UnityEngine.Object.Destroy(handler.gameObject);
             }
+            SharedServices.GetService<EventDispatcher>().RemoveListener<SceneManagementService.SceneUnloadedEvent>(OnSceneUnloaded);
         }
     }
 }

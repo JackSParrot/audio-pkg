@@ -1,5 +1,4 @@
 ﻿using System.Collections.Generic;
-using UnityEngine.Audio;
 using UnityEngine;
 using UnityEngine.AddressableAssets;
 using JackSParrot.Utils;
@@ -10,18 +9,10 @@ public class SFXData
     public string ClipName;
     public AssetReference ReferencedClip;
     [Range(0f, 1f)]
-    public float Volume;
+    public float Volume = 1f;
     [Range(.3f, 3f)]
-    public float Pitch;
-    public bool Loop;
-    public SFXData()
-    {
-        ClipName = string.Empty;
-        ReferencedClip = null;
-        Volume = 1f;
-        Pitch = 1f;
-        Loop = false;
-    }
+    public float Pitch = 1f;
+    public bool Loop = false;
 }
 
 [CreateAssetMenu(fileName = "ClipStorer", menuName = "Audio/ClipStorer", order = 1)]
