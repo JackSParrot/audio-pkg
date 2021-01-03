@@ -1,6 +1,5 @@
-﻿using JackSParrot.Utils;
+using JackSParrot.Utils;
 using UnityEngine;
-using UnityEngine.ResourceManagement.AsyncOperations;
 
 namespace JackSParrot.Services.Audio
 {
@@ -73,9 +72,24 @@ namespace JackSParrot.Services.Audio
             {
                 OnLoaded(data.ReferencedClip.Asset as AudioClip);
             }
+            else if(data.ReferencedClip.OperationHandle.IsValid())
+            {
+                if(data.ReferencedClip.OperationHandle.IsDone)
+                {
+                    OnLoaded(data.ReferencedClip.OperationHandle.Result as AudioClip);
+                }
+                else
+                {
+                    data.ReferencedClip.OperationHandle.Completed += h => OnLoaded(h.Result as AudioClip);
+                }
+            }
             else
             {
-                data.ReferencedClip.LoadAssetAsync<AudioClip>().Completed += h => OnLoaded(h.Result);
+                try
+                {
+                    data.ReferencedClip.LoadAssetAsync<AudioClip>().Completed += h => OnLoaded(h.Result);
+                }
+                catch (System.Exception) { }
             }
         }
 
