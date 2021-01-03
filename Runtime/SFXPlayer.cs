@@ -1,4 +1,4 @@
-﻿using UnityEngine;
+using UnityEngine;
 using System.Collections.Generic;
 using JackSParrot.Utils;
 using System;
@@ -75,7 +75,11 @@ namespace JackSParrot.Services.Audio
                 {
                     if(kvp.Key.ReferencedClip.Asset != null)
                     {
-                        kvp.Key.ReferencedClip.ReleaseAsset();
+                        try
+                        {
+                            kvp.Key.ReferencedClip.ReleaseAsset();
+                        }
+                        catch (Exception) { }
                     }
                 }
             }
