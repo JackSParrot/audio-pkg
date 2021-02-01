@@ -32,9 +32,9 @@ namespace JackSParrot.Services.Audio
 
         internal MusicPlayer(AudioClipsStorer clipStorer)
         {
-            if (SharedServices.GetService<CoroutineRunner>() == null)
+            if (!SharedServices.HasService<ICoroutineRunner>())
             {
-                SharedServices.RegisterService(new CoroutineRunner());
+                SharedServices.RegisterService<ICoroutineRunner>(new CoroutineRunner());
             }
             _clipStorer = clipStorer;
             _source = new GameObject("MusicPlayer").AddComponent<AudioSource>();
