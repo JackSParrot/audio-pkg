@@ -96,6 +96,7 @@ namespace JackSParrot.Services.Audio
             new_handler.Reset();
             _handlers.Add(new_handler);
             new_handler.Id = _idGenerator++;
+            new_handler.Volume = _volume;
             UnityEngine.Object.DontDestroyOnLoad(new_handler.gameObject);
             return new_handler;
         }
@@ -107,6 +108,7 @@ namespace JackSParrot.Services.Audio
                 if(!handler.IsAlive)
                 {
                     handler.Id = _idGenerator++;
+                    handler.Volume = _volume;
                     return handler;
                 }
             }
