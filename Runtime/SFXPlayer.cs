@@ -74,12 +74,8 @@ namespace JackSParrot.Services.Audio
                 if(kvp.Value < 1)
                 {
                     if(kvp.Key.ReferencedClip.Asset != null)
-                    {
-                        try
-                        {
-                            kvp.Key.ReferencedClip.ReleaseAsset();
-                        }
-                        catch (Exception) { }
+                    { 
+                        kvp.Key.ReferencedClip.ReleaseAsset();
                     }
                 }
             }

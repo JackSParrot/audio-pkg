@@ -8,14 +8,11 @@ namespace JackSParrot.Services.Audio
         float _volume = 1f;
         public float Volume
         {
-            get
-            {
-                return _volume;
-            }
+            get { return _volume; }
             set
             {
                 _volume = value;
-                if(data != null)
+                if (data != null)
                 {
                     _source.volume = data.Volume * _volume;
                 }
@@ -26,17 +23,18 @@ namespace JackSParrot.Services.Audio
         public int Id = -1;
         public SFXData data { get; private set; } = null;
 
-        Transform _toFollow = null;
-        Transform _transform;
-        AudioSource _source = null;
-        float _elapsed = 0f;
-        float _duration = 0f;
-        bool _looping = false;
+        Transform    _toFollow = null;
+        Transform    _transform;
+        AudioSource  _source            = null;
+        float        _elapsed           = 0f;
+        float        _duration          = 0f;
+        bool         _looping           = false;
+        private bool _isFollowingTarget = false;
 
         void Awake()
         {
             _transform = transform;
-            if(_source == null)
+            if (_source == null)
             {
                 _source = gameObject.AddComponent<AudioSource>();
             }
@@ -50,6 +48,7 @@ namespace JackSParrot.Services.Audio
             _elapsed = 0f;
             _duration = 0f;
             _toFollow = null;
+            _isFollowingTarget = false;
             _transform.localPosition = Vector3.zero;
             gameObject.SetActive(false);
             Id = -1;
@@ -58,10 +57,20 @@ namespace JackSParrot.Services.Audio
         public void UpdateHandler(float deltaTime)
         {
             _elapsed += deltaTime;
-            if(_toFollow != null)
+            if (!_isFollowingTarget)
+            {
+                return;
+            }
+
+            if (_toFollow != null)
             {
                 _transform.position = _toFollow.position;
+                return;
             }
+
+            _elapsed = _duration;
+            _looping = false;
+            _source.Stop();
         }
 
         public void Play(SFXData data)
@@ -71,26 +80,23 @@ namespace JackSParrot.Services.Audio
             if (data.ReferencedClip.Asset != null)
             {
                 OnLoaded(data.ReferencedClip.Asset as AudioClip);
+                return;
             }
-            else if(data.ReferencedClip.OperationHandle.IsValid())
+
+            if (data.ReferencedClip.OperationHandle.IsValid())
             {
-                if(data.ReferencedClip.OperationHandle.IsDone)
+                if (data.ReferencedClip.OperationHandle.IsDone)
                 {
                     OnLoaded(data.ReferencedClip.OperationHandle.Result as AudioClip);
+                    return;
                 }
-                else
-                {
-                    data.ReferencedClip.OperationHandle.Completed += h => OnLoaded(h.Result as AudioClip);
-                }
+
+                data.ReferencedClip.OperationHandle.Completed += h => OnLoaded(h.Result as AudioClip);
+
+                return;
             }
-            else
-            {
-                try
-                {
-                    data.ReferencedClip.LoadAssetAsync<AudioClip>().Completed += h => OnLoaded(h.Result);
-                }
-                catch (System.Exception) { }
-            }
+
+            data.ReferencedClip.LoadAssetAsync<AudioClip>().Completed += h => OnLoaded(h.Result);
         }
 
         void OnLoaded(AudioClip clip)
@@ -100,6 +106,7 @@ namespace JackSParrot.Services.Audio
                 SharedServices.GetService<ICustomLogger>()?.LogError("Cannot load audio clip: " + data.ClipName);
                 return;
             }
+
             gameObject.SetActive(true);
             gameObject.name = data.ClipName;
             _source.volume = data.Volume * _volume;
@@ -126,7 +133,7 @@ namespace JackSParrot.Services.Audio
             _source.spatialBlend = 1f;
             _transform.position = parent.position;
             _toFollow = parent;
+            _isFollowingTarget = true;
         }
     }
 }
-
