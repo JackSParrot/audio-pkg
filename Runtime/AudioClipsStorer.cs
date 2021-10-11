@@ -1,36 +1,91 @@
 ﻿using System.Collections.Generic;
+using UnityEditor.VersionControl;
 using UnityEngine;
-using UnityEngine.AddressableAssets;
-using JackSParrot.Utils;
-
-[System.Serializable]
-public class SFXData
-{
-    public string ClipName;
-    public AssetReference ReferencedClip;
-    [Range(0f, 1f)]
-    public float Volume = 1f;
-    [Range(.3f, 3f)]
-    public float Pitch = 1f;
-    public bool Loop = false;
-}
 
 [CreateAssetMenu(fileName = "ClipStorer", menuName = "Audio/ClipStorer", order = 1)]
 public class AudioClipsStorer : ScriptableObject
 {
     [SerializeField]
-    List<SFXData> _clips = new List<SFXData>();
+    List<AudioCategory> _categories = new List<AudioCategory>();
 
-    public SFXData GetClipByName(string clipName)
+#if UNITY_EDITOR
+    public List<string> GetAllClips()
     {
-        foreach (var clip in _clips)
+        var retVal = new List<string>();
+        foreach (var category in _categories)
         {
-            if (string.Equals(clip.ClipName, clipName, System.StringComparison.InvariantCultureIgnoreCase))
+            foreach (var clip in category.Clips)
             {
-                return clip;
+                retVal.Add(clip.ClipId);
             }
         }
-        SharedServices.GetService<ICustomLogger>()?.LogError("Trying to get a nonexistent audio clip: " + clipName);
+
+        return retVal;
+    }
+#endif
+    public AudioClipData GetClipById(ClipId clipId)
+    {
+        foreach (var category in _categories)
+        {
+            foreach (var clip in category.Clips)
+            {
+                if (clip.ClipId == clipId)
+                {
+                    return clip;
+                }
+            }
+        }
+
+        Debug.Assert(false);
+        return null;
+    }
+
+    public void LoadClipsForCategory(string categoryId)
+    {
+        var category = GetCategoryById(categoryId);
+        if (category == null)
+        {
+            Debug.Assert(false);
+            return;
+        }
+
+        foreach (var clip in category.Clips)
+        {
+            if (clip.ReferencedClip.IsValid() && clip.ReferencedClip.IsDone)
+            {
+                clip.ReferencedClip.LoadAssetAsync<AudioClip>();
+            }
+        }
+    }
+
+    public void UnloadClipsForCategory(string categoryId)
+    {
+        var category = GetCategoryById(categoryId);
+        if (category == null)
+        {
+            Debug.Assert(false);
+            return;
+        }
+
+        foreach (var clip in category.Clips)
+        {
+            if (clip.ReferencedClip.IsValid() && clip.ReferencedClip.IsDone)
+            {
+                clip.ReferencedClip.ReleaseAsset();
+            }
+        }
+    }
+
+    public AudioCategory GetCategoryById(string categoryId)
+    {
+        foreach (var category in _categories)
+        {
+            if (categoryId.Equals(category.Id))
+            {
+                return category;
+            }
+        }
+
         return null;
     }
 }

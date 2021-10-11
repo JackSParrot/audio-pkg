@@ -10,24 +10,22 @@ namespace JackSParrot.Services.Audio
         float _volume = 1f;
         public float Volume
         {
-            get
-            {
-                return _volume;
-            }
+            get { return _volume; }
             set
             {
                 _volume = value;
-                foreach(var handler in _handlers)
+                foreach (var handler in _handlers)
                 {
                     handler.Volume = _volume;
                 }
             }
         }
 
-        AudioClipsStorer _clipStorer = null;
-        List<AudioClipHandler> _handlers = new List<AudioClipHandler>();
-        Dictionary<SFXData, int> _loadedClips = new Dictionary<SFXData, int>();
-        int _idGenerator = 0;
+        AudioClipsStorer               _clipStorer  = null;
+        List<AudioClipHandler>         _handlers    = new List<AudioClipHandler>();
+        Dictionary<AudioClipData, int> _loadedClips = new Dictionary<AudioClipData, int>();
+        int                            _idGenerator = 0;
+
         internal SFXPlayer(AudioClipsStorer clipsStorer)
         {
             var updater = SharedServices.GetService<IUpdateScheduler>();
@@ -36,8 +34,9 @@ namespace JackSParrot.Services.Audio
                 updater = new UnityUpdateScheduler();
                 SharedServices.RegisterService(updater);
             }
+
             var dispatcher = SharedServices.GetService<EventDispatcher>();
-            if(dispatcher == null)
+            if (dispatcher == null)
             {
                 dispatcher = new EventDispatcher();
                 SharedServices.RegisterService(dispatcher);
@@ -46,7 +45,7 @@ namespace JackSParrot.Services.Audio
             updater.ScheduleUpdate(this);
             dispatcher.AddListener<SceneManagementService.SceneUnloadedEvent>(OnSceneUnloaded);
             _clipStorer = clipsStorer;
-            for(int i = 0; i < 10; ++i)
+            for (int i = 0; i < 10; ++i)
             {
                 CreateHandler();
             }
@@ -59,7 +58,7 @@ namespace JackSParrot.Services.Audio
                 if (handler.IsAlive)
                 {
                     handler.UpdateHandler(deltaTime);
-                    if(!handler.IsAlive)
+                    if (!handler.IsAlive)
                     {
                         StopPlaying(handler);
                     }
@@ -69,12 +68,12 @@ namespace JackSParrot.Services.Audio
 
         public void ReleaseReferenceCache()
         {
-            foreach(var kvp in _loadedClips)
+            foreach (var kvp in _loadedClips)
             {
-                if(kvp.Value < 1)
+                if (kvp.Value < 1)
                 {
-                    if(kvp.Key.ReferencedClip.Asset != null)
-                    { 
+                    if (kvp.Key.ReferencedClip.Asset != null && kvp.Key.AutoRelease)
+                    {
                         kvp.Key.ReferencedClip.ReleaseAsset();
                     }
                 }
@@ -101,57 +100,59 @@ namespace JackSParrot.Services.Audio
         {
             foreach (var handler in _handlers)
             {
-                if(!handler.IsAlive)
+                if (!handler.IsAlive)
                 {
                     handler.Id = _idGenerator++;
                     handler.Volume = _volume;
                     return handler;
                 }
             }
+
             return CreateHandler();
         }
 
-        SFXData GetClipToPlay(string name)
+        AudioClipData GetClipToPlay(ClipId clipId)
         {
-            foreach(var kvp in _loadedClips)
+            foreach (var kvp in _loadedClips)
             {
-                if(kvp.Key.ClipName.Equals(name))
+                if (kvp.Key.ClipId == clipId)
                 {
                     _loadedClips[kvp.Key] += 1;
                     return kvp.Key;
                 }
             }
-            var sfx = _clipStorer.GetClipByName(name);
+
+            var sfx = _clipStorer.GetClipById(clipId);
             _loadedClips.Add(sfx, 1);
             return sfx;
         }
 
-        void ReleasePlayingClip(SFXData clip)
+        void ReleasePlayingClip(AudioClipData clip)
         {
-            if(clip != null && _loadedClips.ContainsKey(clip))
+            if (clip != null && _loadedClips.ContainsKey(clip))
             {
                 _loadedClips[clip] = Mathf.Max(0, _loadedClips[clip]);
             }
         }
 
-        public int Play(string clipName)
+        public int Play(ClipId clipId)
         {
             var handler = GetFreeHandler();
-            handler.Play(GetClipToPlay(clipName));
+            handler.Play(GetClipToPlay(clipId));
             return handler.Id;
         }
 
-        public int Play(string clipName, Transform toFollow)
+        public int Play(ClipId clipId, Transform toFollow)
         {
             var handler = GetFreeHandler();
-            handler.Play(GetClipToPlay(clipName), toFollow);
+            handler.Play(GetClipToPlay(clipId), toFollow);
             return handler.Id;
         }
 
-        public int Play(string clipName, Vector3 at)
+        public int Play(ClipId clipId, Vector3 at)
         {
             var handler = GetFreeHandler();
-            handler.Play(GetClipToPlay(clipName), at);
+            handler.Play(GetClipToPlay(clipId), at);
             return handler.Id;
         }
 
@@ -168,18 +169,20 @@ namespace JackSParrot.Services.Audio
 
         void StopPlaying(AudioClipHandler handler)
         {
-            handler.Reset();
             ReleasePlayingClip(handler.data);
+            handler.Reset();
         }
 
         public void Dispose()
         {
             SharedServices.GetService<IUpdateScheduler>().UnscheduleUpdate(this);
-            foreach(var handler in _handlers)
+            foreach (var handler in _handlers)
             {
                 UnityEngine.Object.Destroy(handler.gameObject);
             }
-            SharedServices.GetService<EventDispatcher>().RemoveListener<SceneManagementService.SceneUnloadedEvent>(OnSceneUnloaded);
+
+            SharedServices.GetService<EventDispatcher>()
+                .RemoveListener<SceneManagementService.SceneUnloadedEvent>(OnSceneUnloaded);
         }
     }
 }

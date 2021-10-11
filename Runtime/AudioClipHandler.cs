@@ -21,7 +21,7 @@ namespace JackSParrot.Services.Audio
 
         public bool IsAlive => _elapsed < _duration || _looping;
         public int Id = -1;
-        public SFXData data { get; private set; } = null;
+        public AudioClipData data { get; private set; } = null;
 
         Transform    _toFollow = null;
         Transform    _transform;
@@ -73,7 +73,7 @@ namespace JackSParrot.Services.Audio
             _source.Stop();
         }
 
-        public void Play(SFXData data)
+        public void Play(AudioClipData data)
         {
             this.data = data;
             _duration = 9999f;
@@ -103,12 +103,12 @@ namespace JackSParrot.Services.Audio
         {
             if (clip == null)
             {
-                SharedServices.GetService<ICustomLogger>()?.LogError("Cannot load audio clip: " + data.ClipName);
+                SharedServices.GetService<ICustomLogger>()?.LogError("Cannot load audio clip: " + data.ClipId);
                 return;
             }
 
             gameObject.SetActive(true);
-            gameObject.name = data.ClipName;
+            gameObject.name = data.ClipId;
             _source.volume = data.Volume * _volume;
             _source.pitch = data.Pitch;
             _source.clip = clip;
@@ -120,14 +120,14 @@ namespace JackSParrot.Services.Audio
             _duration = clip.length;
         }
 
-        public void Play(SFXData data, Vector3 position)
+        public void Play(AudioClipData data, Vector3 position)
         {
             Play(data);
             _source.spatialBlend = 1f;
             _transform.position = position;
         }
 
-        public void Play(SFXData data, Transform parent)
+        public void Play(AudioClipData data, Transform parent)
         {
             Play(data);
             _source.spatialBlend = 1f;

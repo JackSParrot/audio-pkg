@@ -28,7 +28,7 @@ namespace JackSParrot.Services.Audio
         AudioSource _source = null;
         AudioClipsStorer _clipStorer = null;
 
-        SFXData _playingClip = null;
+        AudioClipData _playingClip = null;
 
         internal MusicPlayer(AudioClipsStorer clipStorer)
         {
@@ -43,9 +43,9 @@ namespace JackSParrot.Services.Audio
             _source.spatialBlend = 0f;
         }
 
-        public void Play(string name)
+        public void Play(ClipId clipId)
         {
-            if(_playingClip != null && string.Equals(name, _playingClip.ClipName, StringComparison.InvariantCultureIgnoreCase))
+            if(_playingClip != null && clipId == _playingClip.ClipId)
             {
                 return;
             }
@@ -54,13 +54,8 @@ namespace JackSParrot.Services.Audio
                 _source.Stop();
                 _playingClip.ReferencedClip.ReleaseAsset();
             }
-
-            if(string.IsNullOrEmpty(name))
-            {
-                _playingClip = null;
-                return;
-            }
-            var clip = _clipStorer.GetClipByName(name);
+            
+            var clip = _clipStorer.GetClipById(clipId);
             _playingClip = clip;
             clip.ReferencedClip.LoadAssetAsync<AudioClip>().Completed += h => OnClipLoaded(h.Result);
         }
@@ -69,7 +64,7 @@ namespace JackSParrot.Services.Audio
         {
             if (clip == null)
             {
-                SharedServices.GetService<ICustomLogger>()?.LogError("Cannot load audio clip: " + _playingClip.ClipName);
+                SharedServices.GetService<ICustomLogger>()?.LogError("Cannot load audio clip: " + _playingClip.ClipId);
                 return;
             }
             _source.clip = clip;
@@ -79,13 +74,13 @@ namespace JackSParrot.Services.Audio
             _source.Play();
         }
 
-        public void CrossFade(string name, float duration)
+        public void CrossFade(ClipId clipId, float duration)
         {
             SharedServices.GetService<CoroutineRunner>().StopAllCoroutines(this);
-            SharedServices.GetService<CoroutineRunner>().StartCoroutine(this, CrossFadeCoroutine(name, duration));
+            SharedServices.GetService<CoroutineRunner>().StartCoroutine(this, CrossFadeCoroutine(clipId, duration));
         }
 
-        IEnumerator CrossFadeCoroutine(string fadeTo, float duration)
+        IEnumerator CrossFadeCoroutine(ClipId fadeTo, float duration)
         {
             float halfDuraion = duration * 0.5f;
             SharedServices.GetService<CoroutineRunner>().StartCoroutine(this, FadeOutCoroutine(halfDuraion));
