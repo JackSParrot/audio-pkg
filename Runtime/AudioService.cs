@@ -1,25 +1,34 @@
 ﻿using System;
 using UnityEngine;
+using UnityEngine.Audio;
 
 namespace JackSParrot.Services.Audio
 {
     public class AudioService : IDisposable
     {
-        float _volume      = 1f;
-        float _sfxVolume   = 1f;
-        float _musicVolume = 1f;
-
+        float            _volume = 1f;
         MusicPlayer      _musicPlayer;
         SFXPlayer        _sfxPlayer;
         AudioClipsStorer _clips;
+        AudioMixerGroup  _masterGroup;
 
         public AudioService(AudioClipsStorer storer, float volume = 1f, float sfxVolume = 1f, float musicVolume = 1f)
         {
             _clips = storer;
-            _sfxPlayer = new SFXPlayer(storer);
-            _musicPlayer = new MusicPlayer(storer);
+
+            AudioMixer mixer = Resources.Load<AudioMixer>("GameAudioMixer");
+            if (mixer == null)
+            {
+                mixer = Resources.Load<AudioMixer>("JackSParrotMixer");
+            }
+
+            var musicGroup = mixer.FindMatchingGroups("Music")[0];
+            var sfxGroup = mixer.FindMatchingGroups("SFX")[0];
+            _masterGroup = mixer.FindMatchingGroups("Master")[0];
+            _sfxPlayer = new SFXPlayer(storer, sfxGroup);
+            _musicPlayer = new MusicPlayer(storer, musicGroup);
             Volume = volume;
-            SFXVolume = sfxVolume;
+            SfxVolume = sfxVolume;
             MusicVolume = musicVolume;
         }
 
@@ -31,33 +40,24 @@ namespace JackSParrot.Services.Audio
 
         public float Volume
         {
-            get { return _volume; }
+            get => _volume;
             set
             {
-                _volume = Mathf.Clamp(value, 0f, 1f);
-                _musicPlayer.Volume = _musicVolume * _volume;
-                _sfxPlayer.Volume = _sfxVolume * _volume;
+                _volume = Mathf.Clamp(value, 0.001f, 1f);
+                _masterGroup.audioMixer.SetFloat("masterVolume", Mathf.Log10(_volume) * 20f);
             }
         }
 
         public float MusicVolume
         {
-            get { return _musicVolume; }
-            set
-            {
-                _musicVolume = Mathf.Clamp(value, 0f, 1f);
-                _musicPlayer.Volume = _musicVolume * _volume;
-            }
+            get => _musicPlayer.Volume;
+            set => _musicPlayer.Volume = value;
         }
 
-        public float SFXVolume
+        public float SfxVolume
         {
-            get { return _sfxVolume; }
-            set
-            {
-                _sfxVolume = Mathf.Clamp(value, 0f, 1f);
-                _sfxPlayer.Volume = _sfxVolume * _volume;
-            }
+            get => _sfxPlayer.Volume;
+            set => _sfxPlayer.Volume = value;
         }
 
         public void PlayMusic(ClipId clipId)
@@ -70,22 +70,22 @@ namespace JackSParrot.Services.Audio
             _musicPlayer.CrossFade(clipId, duration);
         }
 
-        public void PlaySFX(ClipId clipId)
+        public void PlaySfx(ClipId clipId)
         {
             _sfxPlayer.Play(clipId);
         }
 
-        public int PlaySFX(ClipId clipId, Transform toFollow)
+        public int PlaySfx(ClipId clipId, Transform toFollow)
         {
             return _sfxPlayer.Play(clipId, toFollow);
         }
 
-        public int PlaySFX(ClipId clipId, Vector3 at)
+        public int PlaySfx(ClipId clipId, Vector3 at)
         {
             return _sfxPlayer.Play(clipId, at);
         }
 
-        public void StopPlayingSFX(int id)
+        public void StopPlayingSfx(int id)
         {
             _sfxPlayer.StopPlaying(id);
         }

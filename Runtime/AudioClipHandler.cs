@@ -1,27 +1,18 @@
+using System;
 using JackSParrot.Utils;
 using UnityEngine;
+using UnityEngine.Audio;
 
 namespace JackSParrot.Services.Audio
 {
     public class AudioClipHandler : MonoBehaviour
     {
-        float _volume = 1f;
-        public float Volume
-        {
-            get { return _volume; }
-            set
-            {
-                _volume = value;
-                if (data != null)
-                {
-                    _source.volume = data.Volume * _volume;
-                }
-            }
-        }
+        [NonSerialized]
+        public int Id = -1;
+        [NonSerialized]
+        public AudioClipData Data = null;
 
         public bool IsAlive => _elapsed < _duration || _looping;
-        public int Id = -1;
-        public AudioClipData data { get; private set; } = null;
 
         Transform    _toFollow = null;
         Transform    _transform;
@@ -40,9 +31,9 @@ namespace JackSParrot.Services.Audio
             }
         }
 
-        public void Reset()
+        public void ResetHandler()
         {
-            data = null;
+            Data = null;
             _source.Stop();
             _looping = false;
             _elapsed = 0f;
@@ -52,6 +43,11 @@ namespace JackSParrot.Services.Audio
             _transform.localPosition = Vector3.zero;
             gameObject.SetActive(false);
             Id = -1;
+        }
+
+        public void SetOutput(AudioMixerGroup mixerGroup)
+        {
+            _source.outputAudioMixerGroup = mixerGroup;
         }
 
         public void UpdateHandler(float deltaTime)
@@ -75,7 +71,7 @@ namespace JackSParrot.Services.Audio
 
         public void Play(AudioClipData data)
         {
-            this.data = data;
+            Data = data;
             _duration = 9999f;
             if (data.ReferencedClip.Asset != null)
             {
@@ -103,20 +99,21 @@ namespace JackSParrot.Services.Audio
         {
             if (clip == null)
             {
-                SharedServices.GetService<ICustomLogger>()?.LogError("Cannot load audio clip: " + data.ClipId);
+                Debug.Assert(false);
                 return;
             }
 
-            gameObject.SetActive(true);
-            gameObject.name = data.ClipId;
-            _source.volume = data.Volume * _volume;
-            _source.pitch = data.Pitch;
+            GameObject go = gameObject;
+            go.SetActive(true);
+            go.name = Data.ClipId;
+            _source.volume = Data.Volume;
+            _source.pitch = Data.Pitch;
             _source.clip = clip;
-            _source.loop = data.Loop;
+            _source.loop = Data.Loop;
             _source.spatialBlend = 0f;
             _source.Play();
             _toFollow = null;
-            _looping = data.Loop;
+            _looping = Data.Loop;
             _duration = clip.length;
         }
 

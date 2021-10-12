@@ -2,7 +2,7 @@
 using UnityEngine;
 using System;
 using JackSParrot.Utils;
-using UnityEngine.ResourceManagement.AsyncOperations;
+using UnityEngine.Audio;
 
 namespace JackSParrot.Services.Audio
 {
@@ -11,50 +11,49 @@ namespace JackSParrot.Services.Audio
         float _volume = 1f;
         public float Volume
         {
-            get
-            {
-                return _volume;
-            }
+            get { return _volume; }
             set
             {
-                _volume = value;
-                if(_playingClip != null)
-                {
-                    _source.volume = _playingClip.Volume * _volume;
-                }
+                _volume = Mathf.Clamp(value, 0.0001f, 1f);
+                _outputMixerGroup.audioMixer.SetFloat("musicVolume", Mathf.Log10(_volume) * 20f);
             }
         }
 
-        AudioSource _source = null;
+        AudioSource      _source     = null;
         AudioClipsStorer _clipStorer = null;
 
-        AudioClipData _playingClip = null;
+        AudioClipData           _playingClip      = null;
+        private AudioMixerGroup _outputMixerGroup = null;
 
-        internal MusicPlayer(AudioClipsStorer clipStorer)
+        internal MusicPlayer(AudioClipsStorer clipStorer, AudioMixerGroup outputGroup)
         {
             if (!SharedServices.HasService<ICoroutineRunner>())
             {
                 SharedServices.RegisterService<ICoroutineRunner>(new CoroutineRunner());
             }
+
+            _outputMixerGroup = outputGroup;
             _clipStorer = clipStorer;
             _source = new GameObject("MusicPlayer").AddComponent<AudioSource>();
             UnityEngine.Object.DontDestroyOnLoad(_source.gameObject);
             _source.playOnAwake = false;
             _source.spatialBlend = 0f;
+            _source.outputAudioMixerGroup = _outputMixerGroup;
         }
 
         public void Play(ClipId clipId)
         {
-            if(_playingClip != null && clipId == _playingClip.ClipId)
+            if (_playingClip != null && clipId == _playingClip.ClipId)
             {
                 return;
             }
-            if(_playingClip != null)
+
+            if (_playingClip != null)
             {
                 _source.Stop();
                 _playingClip.ReferencedClip.ReleaseAsset();
             }
-            
+
             var clip = _clipStorer.GetClipById(clipId);
             _playingClip = clip;
             clip.ReferencedClip.LoadAssetAsync<AudioClip>().Completed += h => OnClipLoaded(h.Result);
@@ -67,10 +66,11 @@ namespace JackSParrot.Services.Audio
                 SharedServices.GetService<ICustomLogger>()?.LogError("Cannot load audio clip: " + _playingClip.ClipId);
                 return;
             }
+
             _source.clip = clip;
             _source.loop = _playingClip.Loop;
             _source.pitch = _playingClip.Pitch;
-            _source.volume = _playingClip.Volume * _volume;
+            _source.volume = _playingClip.Volume;
             _source.Play();
         }
 
@@ -92,7 +92,7 @@ namespace JackSParrot.Services.Audio
         IEnumerator FadeOutCoroutine(float duration)
         {
             float remaining = duration;
-            while(remaining > 0)
+            while (remaining > 0)
             {
                 _source.volume = _volume * remaining / duration;
                 yield return null;
@@ -103,7 +103,7 @@ namespace JackSParrot.Services.Audio
         IEnumerator FadeInCoroutine(float duration)
         {
             float remaining = duration;
-            while(remaining > 0)
+            while (remaining > 0)
             {
                 _source.volume = _volume * (1f - (remaining / duration));
                 yield return null;
@@ -116,9 +116,13 @@ namespace JackSParrot.Services.Audio
             if (_playingClip != null)
             {
                 _source.Stop();
-                _playingClip.ReferencedClip.ReleaseAsset();
+                if (_playingClip.ReferencedClip.Asset != null)
+                {
+                    _playingClip.ReferencedClip.ReleaseAsset();
+                }
             }
-            SharedServices.GetService<CoroutineRunner>().StopAllCoroutines(this);
+
+            SharedServices.GetService<CoroutineRunner>()?.StopAllCoroutines(this);
             UnityEngine.Object.Destroy(_source.gameObject);
         }
     }

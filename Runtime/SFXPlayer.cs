@@ -2,6 +2,7 @@ using UnityEngine;
 using System.Collections.Generic;
 using JackSParrot.Utils;
 using System;
+using UnityEngine.Audio;
 
 namespace JackSParrot.Services.Audio
 {
@@ -10,24 +11,26 @@ namespace JackSParrot.Services.Audio
         float _volume = 1f;
         public float Volume
         {
-            get { return _volume; }
+            get => _volume;
             set
             {
-                _volume = value;
-                foreach (var handler in _handlers)
-                {
-                    handler.Volume = _volume;
-                }
+                _volume = Mathf.Clamp(value, 0.0001f, 1f);
+                _outputMixerGroup.audioMixer.SetFloat("sfxVolume", Mathf.Log10(_volume) * 20f);
             }
         }
 
-        AudioClipsStorer               _clipStorer  = null;
-        List<AudioClipHandler>         _handlers    = new List<AudioClipHandler>();
-        Dictionary<AudioClipData, int> _loadedClips = new Dictionary<AudioClipData, int>();
-        int                            _idGenerator = 0;
+        int                    _idGenerator      = 0;
+        AudioClipsStorer       _clipStorer       = null;
+        AudioMixerGroup        _outputMixerGroup = null;
+        List<AudioClipHandler> _handlers         = new List<AudioClipHandler>();
 
-        internal SFXPlayer(AudioClipsStorer clipsStorer)
+        Dictionary<AudioClipData, int> _loadedClips = new Dictionary<AudioClipData, int>();
+
+
+        internal SFXPlayer(AudioClipsStorer clipsStorer, AudioMixerGroup outputGroup)
         {
+            _outputMixerGroup = outputGroup;
+
             var updater = SharedServices.GetService<IUpdateScheduler>();
             if (updater == null)
             {
@@ -87,13 +90,13 @@ namespace JackSParrot.Services.Audio
 
         AudioClipHandler CreateHandler()
         {
-            var new_handler = new GameObject("sfx_handler").AddComponent<AudioClipHandler>();
-            new_handler.Reset();
-            _handlers.Add(new_handler);
-            new_handler.Id = _idGenerator++;
-            new_handler.Volume = _volume;
-            UnityEngine.Object.DontDestroyOnLoad(new_handler.gameObject);
-            return new_handler;
+            var newHandler = new GameObject("sfx_handler").AddComponent<AudioClipHandler>();
+            newHandler.ResetHandler();
+            _handlers.Add(newHandler);
+            newHandler.Id = _idGenerator++;
+            newHandler.SetOutput(_outputMixerGroup);
+            UnityEngine.Object.DontDestroyOnLoad(newHandler.gameObject);
+            return newHandler;
         }
 
         AudioClipHandler GetFreeHandler()
@@ -103,7 +106,6 @@ namespace JackSParrot.Services.Audio
                 if (!handler.IsAlive)
                 {
                     handler.Id = _idGenerator++;
-                    handler.Volume = _volume;
                     return handler;
                 }
             }
@@ -169,8 +171,8 @@ namespace JackSParrot.Services.Audio
 
         void StopPlaying(AudioClipHandler handler)
         {
-            ReleasePlayingClip(handler.data);
-            handler.Reset();
+            ReleasePlayingClip(handler.Data);
+            handler.ResetHandler();
         }
 
         public void Dispose()
