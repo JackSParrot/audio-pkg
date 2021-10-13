@@ -1,12 +1,11 @@
 using UnityEngine;
 using System.Collections.Generic;
-using JackSParrot.Utils;
 using System;
 using UnityEngine.Audio;
 
 namespace JackSParrot.Services.Audio
 {
-    public class SFXPlayer : IUpdatable, IDisposable
+    public class SfxPlayer : IDisposable
     {
         float _volume = 1f;
         public float Volume
@@ -19,34 +18,20 @@ namespace JackSParrot.Services.Audio
             }
         }
 
-        int                    _idGenerator      = 0;
-        AudioClipsStorer       _clipStorer       = null;
-        AudioMixerGroup        _outputMixerGroup = null;
-        List<AudioClipHandler> _handlers         = new List<AudioClipHandler>();
+        int                               _idGenerator      = 0;
+        AudioClipsStorer                  _clipStorer       = null;
+        AudioMixerGroup                   _outputMixerGroup = null;
+        List<AudioClipHandler>            _handlers         = new List<AudioClipHandler>();
+        private AudioService.UpdateRunner _updateRunner     = null;
+        Dictionary<AudioClipData, int>    _loadedClips      = new Dictionary<AudioClipData, int>();
 
-        Dictionary<AudioClipData, int> _loadedClips = new Dictionary<AudioClipData, int>();
 
-
-        internal SFXPlayer(AudioClipsStorer clipsStorer, AudioMixerGroup outputGroup)
+        internal SfxPlayer(AudioClipsStorer clipsStorer, AudioMixerGroup outputGroup,
+            AudioService.UpdateRunner updateRunner)
         {
             _outputMixerGroup = outputGroup;
-
-            var updater = SharedServices.GetService<IUpdateScheduler>();
-            if (updater == null)
-            {
-                updater = new UnityUpdateScheduler();
-                SharedServices.RegisterService(updater);
-            }
-
-            var dispatcher = SharedServices.GetService<EventDispatcher>();
-            if (dispatcher == null)
-            {
-                dispatcher = new EventDispatcher();
-                SharedServices.RegisterService(dispatcher);
-            }
-
-            updater.ScheduleUpdate(this);
-            dispatcher.AddListener<SceneManagementService.SceneUnloadedEvent>(OnSceneUnloaded);
+            _updateRunner = updateRunner;
+            _updateRunner.OnUpdate = Update;
             _clipStorer = clipsStorer;
             for (int i = 0; i < 10; ++i)
             {
@@ -54,7 +39,7 @@ namespace JackSParrot.Services.Audio
             }
         }
 
-        public void UpdateDelta(float deltaTime)
+        public void Update(float deltaTime)
         {
             foreach (var handler in _handlers)
             {
@@ -81,11 +66,6 @@ namespace JackSParrot.Services.Audio
                     }
                 }
             }
-        }
-
-        void OnSceneUnloaded(SceneManagementService.SceneUnloadedEvent e)
-        {
-            ReleaseReferenceCache();
         }
 
         AudioClipHandler CreateHandler()
@@ -177,14 +157,12 @@ namespace JackSParrot.Services.Audio
 
         public void Dispose()
         {
-            SharedServices.GetService<IUpdateScheduler>().UnscheduleUpdate(this);
+            _updateRunner.OnUpdate = t => { };
+
             foreach (var handler in _handlers)
             {
                 UnityEngine.Object.Destroy(handler.gameObject);
             }
-
-            SharedServices.GetService<EventDispatcher>()
-                .RemoveListener<SceneManagementService.SceneUnloadedEvent>(OnSceneUnloaded);
         }
     }
 }

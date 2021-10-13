@@ -6,15 +6,18 @@ namespace JackSParrot.Services.Audio
 {
     public class AudioService : IDisposable
     {
-        float            _volume = 1f;
-        MusicPlayer      _musicPlayer;
-        SFXPlayer        _sfxPlayer;
-        AudioClipsStorer _clips;
-        AudioMixerGroup  _masterGroup;
+        float                _volume = 1f;
+        MusicPlayer          _musicPlayer;
+        SfxPlayer            _sfxPlayer;
+        AudioClipsStorer     _clips;
+        AudioMixerGroup      _masterGroup;
+        private UpdateRunner _updateRunner;
 
         public AudioService(AudioClipsStorer storer, float volume = 1f, float sfxVolume = 1f, float musicVolume = 1f)
         {
             _clips = storer;
+            _updateRunner = new GameObject("AudioServiceUpdater", typeof(UpdateRunner)).GetComponent<UpdateRunner>();
+            UnityEngine.Object.DontDestroyOnLoad(_updateRunner);
 
             AudioMixer mixer = Resources.Load<AudioMixer>("GameAudioMixer");
             if (mixer == null)
@@ -25,8 +28,8 @@ namespace JackSParrot.Services.Audio
             var musicGroup = mixer.FindMatchingGroups("Music")[0];
             var sfxGroup = mixer.FindMatchingGroups("SFX")[0];
             _masterGroup = mixer.FindMatchingGroups("Master")[0];
-            _sfxPlayer = new SFXPlayer(storer, sfxGroup);
-            _musicPlayer = new MusicPlayer(storer, musicGroup);
+            _sfxPlayer = new SfxPlayer(storer, sfxGroup, _updateRunner);
+            _musicPlayer = new MusicPlayer(storer, musicGroup, _updateRunner);
             Volume = volume;
             SfxVolume = sfxVolume;
             MusicVolume = musicVolume;
@@ -36,6 +39,7 @@ namespace JackSParrot.Services.Audio
         {
             _sfxPlayer.Dispose();
             _musicPlayer.Dispose();
+            UnityEngine.Object.Destroy(_updateRunner);
         }
 
         public float Volume
@@ -92,5 +96,12 @@ namespace JackSParrot.Services.Audio
 
         public void LoadClipsForCategory(string categoryId) => _clips.LoadClipsForCategory(categoryId);
         public void UnloadClipsForCategory(string categoryId) => _clips.UnloadClipsForCategory(categoryId);
+
+        internal class UpdateRunner : MonoBehaviour
+        {
+            public Action<float> OnUpdate = t => { };
+
+            private void Update() => OnUpdate(Time.deltaTime);
+        }
     }
 }

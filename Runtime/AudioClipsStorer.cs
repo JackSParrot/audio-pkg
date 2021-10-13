@@ -7,8 +7,9 @@ public class AudioClipsStorer : ScriptableObject
 {
     [SerializeField]
     List<AudioCategory> _categories = new List<AudioCategory>();
+    
+    public IReadOnlyList<AudioCategory> Categories => _categories;
 
-#if UNITY_EDITOR
     public List<string> GetAllClips()
     {
         var retVal = new List<string>();
@@ -22,7 +23,7 @@ public class AudioClipsStorer : ScriptableObject
 
         return retVal;
     }
-#endif
+
     public AudioClipData GetClipById(ClipId clipId)
     {
         foreach (var category in _categories)

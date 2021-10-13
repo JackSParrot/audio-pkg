@@ -4,8 +4,9 @@ using UnityEngine.AddressableAssets;
 [System.Serializable]
 public class AudioClipData
 {
-    public string         ClipId;
-    public AssetReference ReferencedClip;
+    public string ClipId;
+
+    public AssetReferenceT<AudioClip> ReferencedClip;
     [Range(0f, 1f)]
     public float Volume = 1f;
     [Range(.3f, 3f)]
