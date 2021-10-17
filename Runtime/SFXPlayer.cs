@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System;
 using UnityEngine.Audio;
 
-namespace JackSParrot.Services.Audio
+namespace JackSParrot.Audio
 {
     public class SfxPlayer : IDisposable
     {

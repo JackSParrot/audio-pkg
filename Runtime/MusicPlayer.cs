@@ -3,7 +3,7 @@ using UnityEngine;
 using System;
 using UnityEngine.Audio;
 
-namespace JackSParrot.Services.Audio
+namespace JackSParrot.Audio
 {
     public class MusicPlayer : IDisposable
     {
@@ -18,10 +18,12 @@ namespace JackSParrot.Services.Audio
             }
         }
 
-        AudioSource                       _source           = null;
-        AudioClipsStorer                  _clipStorer       = null;
+        public string PlayingClipId => _playingClip?.ClipId ?? "";
+
+        private AudioClipData             _playingClip      = null;
+        private AudioSource               _source           = null;
+        private AudioClipsStorer          _clipStorer       = null;
         private AudioService.UpdateRunner _updateRunner     = null;
-        AudioClipData                     _playingClip      = null;
         private AudioMixerGroup           _outputMixerGroup = null;
 
         internal MusicPlayer(AudioClipsStorer clipStorer, AudioMixerGroup outputGroup,
@@ -40,7 +42,7 @@ namespace JackSParrot.Services.Audio
 
         public void Play(ClipId clipId)
         {
-            if (_playingClip != null && clipId == _playingClip.ClipId)
+            if (_playingClip != null && clipId == _playingClip.ClipId && _source.isPlaying)
             {
                 return;
             }
@@ -54,6 +56,16 @@ namespace JackSParrot.Services.Audio
             var clip = _clipStorer.GetClipById(clipId);
             _playingClip = clip;
             clip.ReferencedClip.LoadAssetAsync<AudioClip>().Completed += h => OnClipLoaded(h.Result);
+        }
+
+        public void Stop(float fadeOutTime)
+        {
+            if (_updateRunner == null)
+            {
+                return;
+            }
+
+            _updateRunner.StartCoroutine(FadeOutCoroutine(fadeOutTime));
         }
 
         void OnClipLoaded(AudioClip clip)
@@ -74,27 +86,40 @@ namespace JackSParrot.Services.Audio
         public void CrossFade(ClipId clipId, float duration)
         {
             _updateRunner.StopAllCoroutines();
-            _updateRunner.StartCoroutine(CrossFadeCoroutine(clipId, duration));
+            if (_playingClip != null)
+            {
+                _updateRunner.StartCoroutine(CrossFadeCoroutine(clipId, duration));
+            }
+            else
+            {
+                Play(clipId);
+                _updateRunner.StartCoroutine(FadeInCoroutine(duration));
+            }
         }
 
         IEnumerator CrossFadeCoroutine(ClipId fadeTo, float duration)
         {
-            float halfDuraion = duration * 0.5f;
-            _updateRunner.StartCoroutine(FadeOutCoroutine(halfDuraion));
-            yield return new WaitForSeconds(halfDuraion);
+            float halfDuration = duration * 0.5f;
+            _updateRunner.StartCoroutine(FadeOutCoroutine(halfDuration));
+            yield return new WaitForSeconds(halfDuration);
             Play(fadeTo);
-            _updateRunner.StartCoroutine(FadeInCoroutine(halfDuraion));
+            _updateRunner.StartCoroutine(FadeInCoroutine(halfDuration));
         }
 
         IEnumerator FadeOutCoroutine(float duration)
         {
             float remaining = duration;
-            while (remaining > 0)
+            _source.volume = 0f;
+            while (remaining > 0f)
             {
                 _source.volume = _playingClip.Volume * remaining / duration;
                 yield return null;
                 remaining -= Time.deltaTime;
             }
+
+            _source.Stop();
+            _playingClip.ReferencedClip.ReleaseAsset();
+            _playingClip = null;
         }
 
         IEnumerator FadeInCoroutine(float duration)

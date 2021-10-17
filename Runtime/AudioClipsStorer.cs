@@ -1,92 +1,98 @@
-﻿using System.Collections.Generic;
-using UnityEditor.VersionControl;
+﻿using System;
+using System.Collections.Generic;
 using UnityEngine;
 
-[CreateAssetMenu(fileName = "ClipStorer", menuName = "Audio/ClipStorer", order = 1)]
-public class AudioClipsStorer : ScriptableObject
+namespace JackSParrot.Audio
 {
-    [SerializeField]
-    List<AudioCategory> _categories = new List<AudioCategory>();
-    
-    public IReadOnlyList<AudioCategory> Categories => _categories;
-
-    public List<string> GetAllClips()
+    [CreateAssetMenu(fileName = "ClipStorer", menuName = "Audio/ClipStorer", order = 1)]
+    public class AudioClipsStorer : ScriptableObject
     {
-        var retVal = new List<string>();
-        foreach (var category in _categories)
+        [NonSerialized]
+        public AudioService AudioService;
+
+        [SerializeField]
+        List<AudioCategory> _categories = new List<AudioCategory>();
+
+        public IReadOnlyList<AudioCategory> Categories => _categories;
+
+        public List<string> GetAllClips()
         {
-            foreach (var clip in category.Clips)
+            var retVal = new List<string>();
+            foreach (var category in _categories)
             {
-                retVal.Add(clip.ClipId);
+                foreach (var clip in category.Clips)
+                {
+                    retVal.Add(clip.ClipId);
+                }
             }
+
+            return retVal;
         }
 
-        return retVal;
-    }
-
-    public AudioClipData GetClipById(ClipId clipId)
-    {
-        foreach (var category in _categories)
+        public AudioClipData GetClipById(ClipId clipId)
         {
+            foreach (var category in _categories)
+            {
+                foreach (var clip in category.Clips)
+                {
+                    if (clip.ClipId == clipId)
+                    {
+                        return clip;
+                    }
+                }
+            }
+
+            Debug.Assert(false);
+            return null;
+        }
+
+        public void LoadClipsForCategory(string categoryId)
+        {
+            var category = GetCategoryById(categoryId);
+            if (category == null)
+            {
+                Debug.Assert(false);
+                return;
+            }
+
             foreach (var clip in category.Clips)
             {
-                if (clip.ClipId == clipId)
+                if (clip.ReferencedClip.IsValid() && clip.ReferencedClip.IsDone)
                 {
-                    return clip;
+                    clip.ReferencedClip.LoadAssetAsync<AudioClip>();
                 }
             }
         }
 
-        Debug.Assert(false);
-        return null;
-    }
-
-    public void LoadClipsForCategory(string categoryId)
-    {
-        var category = GetCategoryById(categoryId);
-        if (category == null)
+        public void UnloadClipsForCategory(string categoryId)
         {
-            Debug.Assert(false);
-            return;
-        }
-
-        foreach (var clip in category.Clips)
-        {
-            if (clip.ReferencedClip.IsValid() && clip.ReferencedClip.IsDone)
+            var category = GetCategoryById(categoryId);
+            if (category == null)
             {
-                clip.ReferencedClip.LoadAssetAsync<AudioClip>();
+                Debug.Assert(false);
+                return;
             }
-        }
-    }
 
-    public void UnloadClipsForCategory(string categoryId)
-    {
-        var category = GetCategoryById(categoryId);
-        if (category == null)
-        {
-            Debug.Assert(false);
-            return;
-        }
-
-        foreach (var clip in category.Clips)
-        {
-            if (clip.ReferencedClip.IsValid() && clip.ReferencedClip.IsDone)
+            foreach (var clip in category.Clips)
             {
-                clip.ReferencedClip.ReleaseAsset();
-            }
-        }
-    }
-
-    public AudioCategory GetCategoryById(string categoryId)
-    {
-        foreach (var category in _categories)
-        {
-            if (categoryId.Equals(category.Id))
-            {
-                return category;
+                if (clip.ReferencedClip.IsValid() && clip.ReferencedClip.IsDone)
+                {
+                    clip.ReferencedClip.ReleaseAsset();
+                }
             }
         }
 
-        return null;
+        public AudioCategory GetCategoryById(string categoryId)
+        {
+            foreach (var category in _categories)
+            {
+                if (categoryId.Equals(category.Id))
+                {
+                    return category;
+                }
+            }
+
+            return null;
+        }
     }
 }

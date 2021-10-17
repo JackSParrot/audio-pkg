@@ -2,22 +2,27 @@
 using UnityEngine;
 using UnityEngine.Audio;
 
-namespace JackSParrot.Services.Audio
+namespace JackSParrot.Audio
 {
     public class AudioService : IDisposable
     {
-        float                _volume = 1f;
-        MusicPlayer          _musicPlayer;
-        SfxPlayer            _sfxPlayer;
-        AudioClipsStorer     _clips;
-        AudioMixerGroup      _masterGroup;
-        private UpdateRunner _updateRunner;
+        private float            _volume = 1f;
+        private MusicPlayer      _musicPlayer;
+        private SfxPlayer        _sfxPlayer;
+        private AudioClipsStorer _clips;
+        private AudioMixerGroup  _masterGroup;
+        private UpdateRunner     _updateRunner;
+
+        public MusicPlayer Music => _musicPlayer;
+        public SfxPlayer Sfx => _sfxPlayer;
 
         public AudioService(AudioClipsStorer storer, float volume = 1f, float sfxVolume = 1f, float musicVolume = 1f)
         {
             _clips = storer;
+            _clips.AudioService = this;
             _updateRunner = new GameObject("AudioServiceUpdater", typeof(UpdateRunner)).GetComponent<UpdateRunner>();
             UnityEngine.Object.DontDestroyOnLoad(_updateRunner);
+            _updateRunner.OnDestroyed = Dispose;
 
             AudioMixer mixer = Resources.Load<AudioMixer>("GameAudioMixer");
             if (mixer == null)
@@ -37,9 +42,13 @@ namespace JackSParrot.Services.Audio
 
         public void Dispose()
         {
+            _clips.AudioService = null;
             _sfxPlayer.Dispose();
             _musicPlayer.Dispose();
-            UnityEngine.Object.Destroy(_updateRunner);
+            if (_updateRunner != null)
+            {
+                UnityEngine.Object.Destroy(_updateRunner);
+            }
         }
 
         public float Volume
@@ -64,44 +73,29 @@ namespace JackSParrot.Services.Audio
             set => _sfxPlayer.Volume = value;
         }
 
-        public void PlayMusic(ClipId clipId)
-        {
-            _musicPlayer.Play(clipId);
-        }
+        public void PlayMusic(ClipId clipId) => _musicPlayer.Play(clipId);
+        public void StopMusic(float fadeOutTime) => _musicPlayer.Stop(fadeOutTime);
 
-        public void CrossFadeMusic(ClipId clipId, float duration = 0.3f)
-        {
-            _musicPlayer.CrossFade(clipId, duration);
-        }
+        public void CrossFadeMusic(ClipId clipId, float duration = 0.3f) => _musicPlayer.CrossFade(clipId, duration);
 
-        public void PlaySfx(ClipId clipId)
-        {
-            _sfxPlayer.Play(clipId);
-        }
+        public int PlaySfx(ClipId clipId) => _sfxPlayer.Play(clipId);
 
-        public int PlaySfx(ClipId clipId, Transform toFollow)
-        {
-            return _sfxPlayer.Play(clipId, toFollow);
-        }
+        public int PlaySfx(ClipId clipId, Transform toFollow) => _sfxPlayer.Play(clipId, toFollow);
 
-        public int PlaySfx(ClipId clipId, Vector3 at)
-        {
-            return _sfxPlayer.Play(clipId, at);
-        }
+        public int PlaySfx(ClipId clipId, Vector3 at) => _sfxPlayer.Play(clipId, at);
 
-        public void StopPlayingSfx(int id)
-        {
-            _sfxPlayer.StopPlaying(id);
-        }
+        public void StopPlayingSfx(int id) => _sfxPlayer.StopPlaying(id);
 
         public void LoadClipsForCategory(string categoryId) => _clips.LoadClipsForCategory(categoryId);
         public void UnloadClipsForCategory(string categoryId) => _clips.UnloadClipsForCategory(categoryId);
 
         internal class UpdateRunner : MonoBehaviour
         {
-            public Action<float> OnUpdate = t => { };
-
+            public Action<float> OnUpdate    = t => { };
+            public Action        OnDestroyed = () => { };
             private void Update() => OnUpdate(Time.deltaTime);
+
+            private void OnDestroy() => OnDestroyed();
         }
     }
 }

@@ -1,61 +1,64 @@
 ﻿using System;
 using UnityEngine;
 
-[System.Serializable]
-public class ClipId : IEquatable<ClipId>
+namespace JackSParrot.Audio
 {
-    public string Id;
-
-    public ClipId(string id)
+    [System.Serializable]
+    public class ClipId : IEquatable<ClipId>
     {
-        Id = id;
-        Debug.Assert(!string.IsNullOrEmpty(id));
-    }
+        public string Id;
 
-    public bool IsValid() => !string.IsNullOrEmpty(Id);
+        public ClipId(string id)
+        {
+            Id = id;
+            Debug.Assert(!string.IsNullOrEmpty(id));
+        }
 
-    public bool Equals(ClipId other)
-    {
-        return Id == other.Id;
-    }
+        public bool IsValid() => !string.IsNullOrEmpty(Id);
 
-    public override bool Equals(object obj)
-    {
-        return Id.Equals(((ClipId) obj).Id);
-    }
+        public bool Equals(ClipId other)
+        {
+            return Id == other.Id;
+        }
 
-    public override int GetHashCode()
-    {
-        return Id.GetHashCode();
-    }
+        public override bool Equals(object obj)
+        {
+            return Id.Equals(((ClipId) obj).Id);
+        }
 
-    public static bool operator ==(ClipId a, ClipId b)
-    {
-        return a.Id == b.Id;
-    }
+        public override int GetHashCode()
+        {
+            return Id.GetHashCode();
+        }
 
-    public static bool operator ==(ClipId a, string b)
-    {
-        return a.Id == b;
-    }
+        public static bool operator ==(ClipId a, ClipId b)
+        {
+            return a.Id == b.Id;
+        }
 
-    public static bool operator !=(ClipId a, string b)
-    {
-        return !(a.Id == b);
-    }
+        public static bool operator ==(ClipId a, string b)
+        {
+            return a.Id == b;
+        }
 
-    public static bool operator !=(string a, ClipId b)
-    {
-        return !(a == b.Id);
-    }
+        public static bool operator !=(ClipId a, string b)
+        {
+            return !(a.Id == b);
+        }
 
-    public static bool operator ==(string a, ClipId b)
-    {
-        return a == b.Id;
-    }
+        public static bool operator !=(string a, ClipId b)
+        {
+            return !(a == b.Id);
+        }
 
-    public static bool operator !=(ClipId a, ClipId b)
-    {
-        return !(a == b);
+        public static bool operator ==(string a, ClipId b)
+        {
+            return a == b.Id;
+        }
+
+        public static bool operator !=(ClipId a, ClipId b)
+        {
+            return !(a == b);
+        }
     }
 }

@@ -1,9 +1,8 @@
 using System;
-using JackSParrot.Utils;
 using UnityEngine;
 using UnityEngine.Audio;
 
-namespace JackSParrot.Services.Audio
+namespace JackSParrot.Audio
 {
     public class AudioClipHandler : MonoBehaviour
     {
