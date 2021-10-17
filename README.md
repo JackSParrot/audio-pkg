@@ -3,7 +3,6 @@
 ## Dependencies
 You need to import the following packages before importing this package
 1. Addressable Assets
-2. https://github.com/JackSParrot/utils-pkg
 
 ## Installation using the Unity Package Manager (Unity 2019.3+)
 1. Open the Package Manager Window. 
