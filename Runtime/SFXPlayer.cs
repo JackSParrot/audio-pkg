@@ -161,8 +161,13 @@ namespace JackSParrot.Audio
 
             foreach (var handler in _handlers)
             {
-                UnityEngine.Object.Destroy(handler.gameObject);
+                if (handler != null)
+                {
+                    UnityEngine.Object.Destroy(handler.gameObject);
+                }
             }
+
+            _handlers.Clear();
         }
     }
 }

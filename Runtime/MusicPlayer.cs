@@ -108,6 +108,11 @@ namespace JackSParrot.Audio
 
         IEnumerator FadeOutCoroutine(float duration)
         {
+            if (_source == null)
+            {
+                yield break;
+            }
+
             float remaining = duration;
             _source.volume = 0f;
             while (remaining > 0f)
@@ -137,13 +142,18 @@ namespace JackSParrot.Audio
         {
             if (_playingClip != null)
             {
-                _source.Stop();
                 if (_playingClip.ReferencedClip.Asset != null)
                 {
                     _playingClip.ReferencedClip.ReleaseAsset();
                 }
             }
-
+            
+            if (_updateRunner == null || _source == null)
+            {
+                return;
+            }
+            
+            _source.Stop();
             _updateRunner.StopAllCoroutines();
             UnityEngine.Object.Destroy(_source.gameObject);
         }
