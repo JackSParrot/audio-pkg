@@ -25,6 +25,19 @@ namespace JackSParrot.Audio
             _list.drawHeaderCallback = (rect) => EditorGUI.LabelField(rect, "Categories");
             _list.drawElementCallback = DrawElementCallback;
             _list.elementHeightCallback = ElementHeightCallback;
+            _list.onAddCallback = OnAddCallback;
+        }
+
+        private void OnAddCallback(ReorderableList list)
+        {
+            SerializedProperty categoriesPropertyy = serializedObject.FindProperty("_categories");
+            categoriesPropertyy.InsertArrayElementAtIndex(Mathf.Max(0, categoriesPropertyy.arraySize - 1));
+            SerializedProperty categoryProperty =
+                categoriesPropertyy.GetArrayElementAtIndex(categoriesPropertyy.arraySize - 1);
+            categoryProperty.FindPropertyRelative("Id").stringValue =
+                $"new Cateogry ({categoriesPropertyy.arraySize - 1})";
+            categoryProperty.FindPropertyRelative("Clips").arraySize = 0;
+            serializedObject.ApplyModifiedProperties();
         }
 
         private float ElementHeightCallback(int index)
