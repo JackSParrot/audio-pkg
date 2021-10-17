@@ -48,11 +48,12 @@ namespace JackSParrot.Audio
 
         IEnumerator WaitForServiceCoroutine()
         {
+            yield return null;
             _audioService = _clipsStorer.AudioService;
-            while (_audioService == null)
+            if (_audioService == null)
             {
-                _audioService = _clipsStorer.AudioService;
-                yield return null;
+                _audioService = new AudioService(_clipsStorer);
+                _clipsStorer.AudioService = _audioService;
             }
 
             Play();
