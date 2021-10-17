@@ -151,7 +151,7 @@ namespace JackSParrot.Audio
             GUI.color = Color.green;
             if (GUI.Button(rect, "+"))
             {
-                clips.InsertArrayElementAtIndex(clips.arraySize - 1);
+                clips.InsertArrayElementAtIndex(Mathf.Max(0, clips.arraySize - 1));
                 SerializedProperty newClip = clips.GetArrayElementAtIndex(clips.arraySize - 1);
                 newClip.FindPropertyRelative("ClipId").stringValue = $"new clip ({clips.arraySize - 1})";
                 newClip.FindPropertyRelative("Volume").floatValue = 1f;
