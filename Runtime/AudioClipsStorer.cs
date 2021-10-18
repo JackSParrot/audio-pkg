@@ -51,20 +51,18 @@ namespace JackSParrot.Audio
 
         public void LoadClipsForCategory(string categoryId)
         {
-            foreach (AudioCategory category in Categories)
+            var category = GetCategoryById(categoryId);
+            if (category == null)
             {
-                if (category.Id != categoryId)
-                {
-                    UnloadClipsForCategory(category.Id);
-                    continue;
-                }
+                Debug.Assert(false);
+                return;
+            }
 
-                foreach (var clip in category.Clips)
+            foreach (var clip in category.Clips)
+            {
+                if (clip.ReferencedClip.IsValid() && clip.ReferencedClip.Asset != null && !clip.ReferencedClip.IsDone)
                 {
-                    if (clip.ReferencedClip.IsValid() && clip.ReferencedClip.Asset == null)
-                    {
-                        clip.ReferencedClip.LoadAssetAsync<AudioClip>();
-                    }
+                    clip.ReferencedClip.LoadAssetAsync<AudioClip>();
                 }
             }
         }

@@ -1,3 +1,4 @@
+using JackSParrot.Audio.Editor;
 using UnityEditor;
 using UnityEngine;
 
@@ -12,20 +13,7 @@ namespace JackSParrot.Audio
 
         private void Initialize(string currentValue)
         {
-            var assets = AssetDatabase.FindAssets("t:AudioClipsStorer");
-            if (assets.Length < 1)
-            {
-                Debug.LogError("No AudioClipStorer created");
-                return;
-            }
-
-            if (assets.Length > 1)
-            {
-                Debug.LogError("There are more than 1 AudioClipStorer created");
-                return;
-            }
-
-            _clips = AssetDatabase.LoadAssetAtPath<AudioClipsStorer>(AssetDatabase.GUIDToAssetPath(assets[0]));
+            _clips = EditorUtils.GetOrCreateAudioClipsStorer();
             var allClips = _clips.GetAllClips().ToArray();
             _ids = new string[allClips.Length + 1];
             _ids[0] = "NONE";
