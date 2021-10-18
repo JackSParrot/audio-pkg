@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.Audio;
 
 namespace JackSParrot.Audio
 {
@@ -9,6 +10,8 @@ namespace JackSParrot.Audio
     {
         [NonSerialized]
         public AudioService AudioService;
+
+        public AudioMixer OutputMixer = null;
 
         [SerializeField]
         List<AudioCategory> _categories = new List<AudioCategory>();

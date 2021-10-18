@@ -24,14 +24,10 @@ namespace JackSParrot.Audio
             UnityEngine.Object.DontDestroyOnLoad(_updateRunner);
             _updateRunner.OnDestroyed = Dispose;
 
-            AudioMixer mixer = Resources.Load<AudioMixer>("GameAudioMixer");
-            if (mixer == null)
-            {
-                mixer = Resources.Load<AudioMixer>("JackSParrotMixer");
-            }
-
-            var musicGroup = mixer.FindMatchingGroups("Music")[0];
-            var sfxGroup = mixer.FindMatchingGroups("SFX")[0];
+            AudioMixer mixer = storer.OutputMixer;
+            AudioMixerGroup musicGroup = mixer.FindMatchingGroups("Music")[0];
+            AudioMixerGroup sfxGroup = mixer.FindMatchingGroups("SFX")[0];
+            
             _masterGroup = mixer.FindMatchingGroups("Master")[0];
             _sfxPlayer = new SfxPlayer(storer, sfxGroup, _updateRunner);
             _musicPlayer = new MusicPlayer(storer, musicGroup, _updateRunner);
