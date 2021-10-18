@@ -2,6 +2,7 @@
 using UnityEngine;
 using System;
 using UnityEngine.Audio;
+using UnityEngine.Windows.WebCam;
 
 namespace JackSParrot.Audio
 {
@@ -33,14 +34,20 @@ namespace JackSParrot.Audio
 
             _outputMixerGroup = outputGroup;
             _clipStorer = clipStorer;
-            _source = new GameObject("MusicPlayer").AddComponent<AudioSource>();
-            UnityEngine.Object.DontDestroyOnLoad(_source.gameObject);
-            _source.playOnAwake = false;
-            _source.spatialBlend = 0f;
-            _source.outputAudioMixerGroup = _outputMixerGroup;
+            _source = CreateSource();
         }
 
-        public void Play(ClipId clipId)
+        private AudioSource CreateSource()
+        {
+            AudioSource retVal = new GameObject("MusicPlayer").AddComponent<AudioSource>();
+            UnityEngine.Object.DontDestroyOnLoad(retVal.gameObject);
+            retVal.playOnAwake = false;
+            retVal.spatialBlend = 0f;
+            retVal.outputAudioMixerGroup = _outputMixerGroup;
+            return retVal;
+        }
+
+        private void Play(ClipId clipId)
         {
             if (_playingClip != null && clipId == _playingClip.ClipId && _source.isPlaying)
             {
@@ -51,21 +58,36 @@ namespace JackSParrot.Audio
             {
                 _source.Stop();
                 _playingClip.ReferencedClip.ReleaseAsset();
+                _playingClip = null;
             }
 
-            var clip = _clipStorer.GetClipById(clipId);
+            AudioClipData clip = _clipStorer.GetClipById(clipId);
+            if (clip == null)
+            {
+                Debug.Assert(false);
+                return;
+            }
+
             _playingClip = clip;
             clip.ReferencedClip.LoadAssetAsync<AudioClip>().Completed += h => OnClipLoaded(h.Result);
         }
 
-        public void Stop(float fadeOutTime)
+        public void Play(ClipId clipId, float fadeInSeconds)
+        {
+            Play(clipId);
+            _updateRunner.StopAllCoroutines();
+            _updateRunner.StartCoroutine(FadeInCoroutine(fadeInSeconds));
+        }
+
+        public void Stop(float fadeOutSeconds)
         {
             if (_updateRunner == null)
             {
                 return;
             }
 
-            _updateRunner.StartCoroutine(FadeOutCoroutine(fadeOutTime));
+            _updateRunner.StopAllCoroutines();
+            _updateRunner.StartCoroutine(FadeOutCoroutine(fadeOutSeconds));
         }
 
         void OnClipLoaded(AudioClip clip)
@@ -85,6 +107,11 @@ namespace JackSParrot.Audio
 
         public void CrossFade(ClipId clipId, float duration)
         {
+            if (_updateRunner == null)
+            {
+                return;
+            }
+
             _updateRunner.StopAllCoroutines();
             if (_playingClip != null)
             {
@@ -99,7 +126,17 @@ namespace JackSParrot.Audio
 
         IEnumerator CrossFadeCoroutine(ClipId fadeTo, float duration)
         {
+            if (_source == null)
+            {
+                yield break;
+            }
+
             float halfDuration = duration * 0.5f;
+            while (!_source.isPlaying)
+            {
+                yield return null;
+            }
+
             _updateRunner.StartCoroutine(FadeOutCoroutine(halfDuration));
             yield return new WaitForSeconds(halfDuration);
             Play(fadeTo);
@@ -111,6 +148,11 @@ namespace JackSParrot.Audio
             if (_source == null)
             {
                 yield break;
+            }
+
+            while (!_source.isPlaying)
+            {
+                yield return null;
             }
 
             float remaining = duration;
@@ -129,6 +171,16 @@ namespace JackSParrot.Audio
 
         IEnumerator FadeInCoroutine(float duration)
         {
+            if (_source == null)
+            {
+                yield break;
+            }
+
+            while (!_source.isPlaying)
+            {
+                yield return null;
+            }
+
             float remaining = duration;
             while (remaining > 0)
             {
@@ -147,12 +199,12 @@ namespace JackSParrot.Audio
                     _playingClip.ReferencedClip.ReleaseAsset();
                 }
             }
-            
+
             if (_updateRunner == null || _source == null)
             {
                 return;
             }
-            
+
             _source.Stop();
             _updateRunner.StopAllCoroutines();
             UnityEngine.Object.Destroy(_source.gameObject);

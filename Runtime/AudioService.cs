@@ -1,4 +1,5 @@
 ﻿using System;
+using JackSParrot.Utils;
 using UnityEngine;
 using UnityEngine.Audio;
 
@@ -22,18 +23,32 @@ namespace JackSParrot.Audio
             _clips.AudioService = this;
             _updateRunner = new GameObject("AudioServiceUpdater", typeof(UpdateRunner)).GetComponent<UpdateRunner>();
             UnityEngine.Object.DontDestroyOnLoad(_updateRunner);
-            _updateRunner.OnDestroyed = Dispose;
+            _updateRunner.OnDestroyed = GameQuit;
 
             AudioMixer mixer = storer.OutputMixer;
             AudioMixerGroup musicGroup = mixer.FindMatchingGroups("Music")[0];
             AudioMixerGroup sfxGroup = mixer.FindMatchingGroups("SFX")[0];
-            
+
             _masterGroup = mixer.FindMatchingGroups("Master")[0];
             _sfxPlayer = new SfxPlayer(storer, sfxGroup, _updateRunner);
             _musicPlayer = new MusicPlayer(storer, musicGroup, _updateRunner);
             Volume = volume;
             SfxVolume = sfxVolume;
             MusicVolume = musicVolume;
+#if JACKSPARROT_UTILS_AUDIO
+            if (!SharedServices.HasService<AudioService>())
+            {
+                SharedServices.RegisterService(this);
+            }
+#endif
+        }
+
+        public void GameQuit()
+        {
+#if JACKSPARROT_UTILS_AUDIO
+            SharedServices.UnregisterService<AudioService>();
+#endif
+            Dispose();
         }
 
         public void Dispose()
@@ -69,8 +84,8 @@ namespace JackSParrot.Audio
             set => _sfxPlayer.Volume = value;
         }
 
-        public void PlayMusic(ClipId clipId) => _musicPlayer.Play(clipId);
-        public void StopMusic(float fadeOutTime) => _musicPlayer.Stop(fadeOutTime);
+        public void PlayMusic(ClipId clipId, float fadeInSeconds) => _musicPlayer.Play(clipId, fadeInSeconds);
+        public void StopMusic(float fadeOutSeconds) => _musicPlayer.Stop(fadeOutSeconds);
 
         public void CrossFadeMusic(ClipId clipId, float duration = 0.3f) => _musicPlayer.CrossFade(clipId, duration);
 

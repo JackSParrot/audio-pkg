@@ -23,9 +23,6 @@ namespace JackSParrot.Audio
         [SerializeField]
         protected bool _stopOnDisable = false;
 
-        [SerializeField]
-        protected bool _stopOnDestroy = false;
-
         protected AudioService _audioService = null;
 
         public void Play()
@@ -53,7 +50,6 @@ namespace JackSParrot.Audio
             if (_audioService == null)
             {
                 _audioService = new AudioService(_clipsStorer);
-                _clipsStorer.AudioService = _audioService;
             }
 
             Play();
@@ -74,14 +70,6 @@ namespace JackSParrot.Audio
         private void OnDisable()
         {
             if (_stopOnDisable)
-            {
-                Stop();
-            }
-        }
-
-        private void OnDestroy()
-        {
-            if (_stopOnDestroy)
             {
                 Stop();
             }

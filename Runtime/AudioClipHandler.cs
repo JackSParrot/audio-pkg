@@ -72,6 +72,13 @@ namespace JackSParrot.Audio
         {
             Data = data;
             _duration = 9999f;
+            _source.spatialBlend = 0f;
+            gameObject.name = Data.ClipId;
+            _source.volume = Data.Volume;
+            _source.pitch = Data.Pitch;
+            _source.loop = Data.Loop;
+            _looping = Data.Loop;
+            
             if (data.ReferencedClip.Asset != null)
             {
                 OnLoaded(data.ReferencedClip.Asset as AudioClip);
@@ -102,17 +109,10 @@ namespace JackSParrot.Audio
                 return;
             }
 
-            GameObject go = gameObject;
-            go.SetActive(true);
-            go.name = Data.ClipId;
-            _source.volume = Data.Volume;
-            _source.pitch = Data.Pitch;
+            gameObject.SetActive(true);
             _source.clip = clip;
-            _source.loop = Data.Loop;
-            _source.spatialBlend = 0f;
             _source.Play();
             _toFollow = null;
-            _looping = Data.Loop;
             _duration = clip.length;
         }
 

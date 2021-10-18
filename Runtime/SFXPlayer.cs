@@ -1,6 +1,7 @@
 using UnityEngine;
 using System.Collections.Generic;
 using System;
+using System.IO;
 using UnityEngine.Audio;
 
 namespace JackSParrot.Audio
@@ -157,7 +158,10 @@ namespace JackSParrot.Audio
 
         public void Dispose()
         {
-            _updateRunner.OnUpdate = t => { };
+            if (_updateRunner != null)
+            {
+                _updateRunner.OnUpdate = t => { };
+            }
 
             foreach (var handler in _handlers)
             {

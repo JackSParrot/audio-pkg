@@ -5,7 +5,6 @@ using UnityEngine;
 using UnityEngine.Audio;
 
 [assembly: InternalsVisibleTo("JackSParrotAudio.Editor")]
-
 namespace JackSParrot.Audio.Editor
 {
     public static class EditorUtils
