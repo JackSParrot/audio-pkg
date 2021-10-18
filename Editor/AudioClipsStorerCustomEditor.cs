@@ -191,6 +191,7 @@ namespace JackSParrot.Audio
             }
 
             serializedObject.Update();
+            EditorGUILayout.PropertyField(serializedObject.FindProperty("OutputMixer"));
             _list.DoLayoutList();
             serializedObject.ApplyModifiedProperties();
 

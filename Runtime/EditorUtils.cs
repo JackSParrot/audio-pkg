@@ -30,13 +30,13 @@ namespace JackSParrot.Audio.Editor
                 {
                     System.IO.Directory.CreateDirectory(Application.dataPath + "/JackSParrot/Audio/Resources");
                 }
-                AudioMixer mixer = Resources.Load<AudioMixer>("JackSParrotAudioMixer");
-                AssetDatabase.CreateAsset(mixer, "Assets/JackSParrot/Audio/Resources/AudioMixer.mixer");
+
+                AudioMixer mixer = Resources.Load<AudioMixer>("JackSParrotMixer");
 
                 AudioClipsStorer item = ScriptableObject.CreateInstance<AudioClipsStorer>();
                 item.OutputMixer = mixer;
                 AssetDatabase.CreateAsset(item, "Assets/JackSParrot/Audio/Resources/AudioClipStorer.asset");
-                
+
                 return item;
             }
 
