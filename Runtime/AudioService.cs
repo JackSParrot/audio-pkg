@@ -1,7 +1,10 @@
 ﻿using System;
-using JackSParrot.Utils;
 using UnityEngine;
 using UnityEngine.Audio;
+
+#if JACKSPARROT_UTILS_AUDIO
+using JackSParrot.Utils;
+#endif
 
 namespace JackSParrot.Audio
 {

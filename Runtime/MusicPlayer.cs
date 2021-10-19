@@ -2,7 +2,6 @@
 using UnityEngine;
 using System;
 using UnityEngine.Audio;
-using UnityEngine.Windows.WebCam;
 
 namespace JackSParrot.Audio
 {

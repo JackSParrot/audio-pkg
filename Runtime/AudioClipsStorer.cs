@@ -60,7 +60,7 @@ namespace JackSParrot.Audio
 
             foreach (var clip in category.Clips)
             {
-                if (clip.ReferencedClip.IsValid() && clip.ReferencedClip.Asset != null && !clip.ReferencedClip.IsDone)
+                if (clip.ReferencedClip.IsValid() && clip.ReferencedClip.Asset == null && !clip.ReferencedClip.IsDone)
                 {
                     clip.ReferencedClip.LoadAssetAsync<AudioClip>();
                 }
