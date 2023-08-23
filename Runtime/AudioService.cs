@@ -1,115 +1,241 @@
 ﻿using System;
+using System.Collections;
+using System.Collections.Generic;
+using JackSParrot.Utils;
 using UnityEngine;
 using UnityEngine.Audio;
 
-#if JACKSPARROT_UTILS_AUDIO
-using JackSParrot.Utils;
-#endif
-
-namespace JackSParrot.Audio
+namespace JackSParrot.Services.Audio
 {
-    public class AudioService : IDisposable
-    {
-        private float            _volume = 1f;
-        private MusicPlayer      _musicPlayer;
-        private SfxPlayer        _sfxPlayer;
-        private AudioClipsStorer _clips;
-        private AudioMixerGroup  _masterGroup;
-        private UpdateRunner     _updateRunner;
+	[CreateAssetMenu(fileName = "AudioService", menuName = "JackSParrot/Services/AudioService")]
+	public class AudioService: AService
+	{
+		public AudioMixer OutputMixer = null;
 
-        public MusicPlayer Music => _musicPlayer;
-        public SfxPlayer Sfx => _sfxPlayer;
+		[SerializeField]
+		List<AudioCategory> _categories = new List<AudioCategory>();
 
-        public AudioService(AudioClipsStorer storer, float volume = 1f, float sfxVolume = 1f, float musicVolume = 1f)
-        {
-            _clips = storer;
-            _clips.AudioService = this;
-            _updateRunner = new GameObject("AudioServiceUpdater", typeof(UpdateRunner)).GetComponent<UpdateRunner>();
-            UnityEngine.Object.DontDestroyOnLoad(_updateRunner);
-            _updateRunner.OnDestroyed = GameQuit;
+		private List<string> _categoriesLoaded = new List<string>();
 
-            AudioMixer mixer = storer.OutputMixer;
-            AudioMixerGroup musicGroup = mixer.FindMatchingGroups("Music")[0];
-            AudioMixerGroup sfxGroup = mixer.FindMatchingGroups("SFX")[0];
+		public IReadOnlyList<AudioCategory> Categories => _categories;
 
-            _masterGroup = mixer.FindMatchingGroups("Master")[0];
-            _sfxPlayer = new SfxPlayer(storer, sfxGroup, _updateRunner);
-            _musicPlayer = new MusicPlayer(storer, musicGroup, _updateRunner);
-            Volume = volume;
-            SfxVolume = sfxVolume;
-            MusicVolume = musicVolume;
-#if JACKSPARROT_UTILS_AUDIO
-            if (!SharedServices.HasService<AudioService>())
-            {
-                SharedServices.RegisterService(this);
-            }
-#endif
-        }
+		private float           volume = 1f;
+		private MusicPlayer     musicPlayer;
+		private SfxPlayer       sfxPlayer;
+		private AudioMixerGroup masterGroup;
+		private UpdateRunner    updateRunner;
 
-        public void GameQuit()
-        {
-#if JACKSPARROT_UTILS_AUDIO
-            SharedServices.UnregisterService<AudioService>();
-#endif
-            Dispose();
-        }
+		public MusicPlayer Music => musicPlayer;
+		public SfxPlayer Sfx => sfxPlayer;
 
-        public void Dispose()
-        {
-            _clips.AudioService = null;
-            _sfxPlayer.Dispose();
-            _musicPlayer.Dispose();
-            if (_updateRunner != null)
-            {
-                UnityEngine.Object.Destroy(_updateRunner);
-            }
-        }
+		public float Volume
+		{
+			get => volume;
+			set
+			{
+				volume = Mathf.Clamp(value, 0.001f, 1f);
+				masterGroup.audioMixer.SetFloat("masterVolume", Mathf.Log10(volume) * 20f);
+				PlayerPrefs.SetFloat("MasterVolume", volume);
+			}
+		}
 
-        public float Volume
-        {
-            get => _volume;
-            set
-            {
-                _volume = Mathf.Clamp(value, 0.001f, 1f);
-                _masterGroup.audioMixer.SetFloat("masterVolume", Mathf.Log10(_volume) * 20f);
-            }
-        }
+		public float MusicVolume
+		{
+			get => musicPlayer.Volume;
+			set => musicPlayer.Volume = value;
+		}
 
-        public float MusicVolume
-        {
-            get => _musicPlayer.Volume;
-            set => _musicPlayer.Volume = value;
-        }
+		public float SfxVolume
+		{
+			get => sfxPlayer.Volume;
+			set => sfxPlayer.Volume = value;
+		}
 
-        public float SfxVolume
-        {
-            get => _sfxPlayer.Volume;
-            set => _sfxPlayer.Volume = value;
-        }
+		public override void Cleanup()
+		{
+			sfxPlayer.Dispose();
+			musicPlayer.Dispose();
+			Reset();
+			if (updateRunner != null)
+			{
+				UnityEngine.Object.Destroy(updateRunner);
+			}
+		}
 
-        public void PlayMusic(ClipId clipId, float fadeInSeconds) => _musicPlayer.Play(clipId, fadeInSeconds);
-        public void StopMusic(float fadeOutSeconds) => _musicPlayer.Stop(fadeOutSeconds);
+		public override List<Type> GetDependencies()
+		{
+			return null;
+		}
 
-        public void CrossFadeMusic(ClipId clipId, float duration = 0.3f) => _musicPlayer.CrossFade(clipId, duration);
+		public override IEnumerator Initialize()
+		{
+			updateRunner = new GameObject("AudioServiceUpdater", typeof(UpdateRunner)).GetComponent<UpdateRunner>();
+			UnityEngine.Object.DontDestroyOnLoad(updateRunner);
+			updateRunner.OnDestroyed = Cleanup;
 
-        public int PlaySfx(ClipId clipId) => _sfxPlayer.Play(clipId);
+			AudioMixerGroup musicGroup = OutputMixer.FindMatchingGroups("Music")[0];
+			AudioMixerGroup sfxGroup = OutputMixer.FindMatchingGroups("SFX")[0];
 
-        public int PlaySfx(ClipId clipId, Transform toFollow) => _sfxPlayer.Play(clipId, toFollow);
+			masterGroup = OutputMixer.FindMatchingGroups("Master")[0];
+			sfxPlayer = new SfxPlayer(this, sfxGroup);
+			musicPlayer = new MusicPlayer(this, musicGroup, updateRunner);
+			Volume = PlayerPrefs.GetFloat("MasterVolume", 1f);
+			SfxVolume = PlayerPrefs.GetFloat("SfxVolume", 1f);
+			MusicVolume = PlayerPrefs.GetFloat("MusicVolume", 1f);
+			Status = EServiceStatus.Initialized;
+			yield return null;
+		}
 
-        public int PlaySfx(ClipId clipId, Vector3 at) => _sfxPlayer.Play(clipId, at);
+		public void PlayMusic(ClipId clipId, float fadeInSeconds) => musicPlayer.Play(clipId, fadeInSeconds);
+		public void StopMusic(float fadeOutSeconds) => musicPlayer.Stop(fadeOutSeconds);
 
-        public void StopPlayingSfx(int id) => _sfxPlayer.StopPlaying(id);
+		public void CrossFadeMusic(ClipId clipId, float duration = 0.3f) => musicPlayer.CrossFade(clipId, duration);
 
-        public void LoadClipsForCategory(string categoryId) => _clips.LoadClipsForCategory(categoryId);
-        public void UnloadClipsForCategory(string categoryId) => _clips.UnloadClipsForCategory(categoryId);
+		public int PlaySfx(ClipId clipId) => sfxPlayer.Play(clipId);
+		public int PlaySfx(ClipId clipId, float volumeModifier) => sfxPlayer.Play(clipId, volumeModifier);
 
-        internal class UpdateRunner : MonoBehaviour
-        {
-            public Action<float> OnUpdate    = t => { };
-            public Action        OnDestroyed = () => { };
-            private void Update() => OnUpdate(Time.deltaTime);
+		public int PlaySfx(ClipId clipId, Transform toFollow) => sfxPlayer.Play(clipId, toFollow);
 
-            private void OnDestroy() => OnDestroyed();
-        }
-    }
+		public int PlaySfx(ClipId clipId, Vector3 at) => sfxPlayer.Play(clipId, at);
+
+		public void UpdatePlayingClipVolume(int id, float newVolume) => sfxPlayer.UpdatePlayingClipVolume(id, newVolume);
+
+		public void StopPlayingSfx(int id) => sfxPlayer.StopPlaying(id);
+		public void StopPlayingAllSfx() => sfxPlayer.StopPlayingAll();
+
+		public List<string> GetAllClips()
+		{
+			List<string> retVal = new List<string>();
+			foreach (AudioCategory category in _categories)
+			{
+				foreach (AudioClipData clip in category.Clips)
+				{
+					retVal.Add(clip.ClipId);
+				}
+			}
+
+			return retVal;
+		}
+
+		public AudioClipData GetClipById(ClipId clipId)
+		{
+			foreach (AudioCategory category in _categories)
+			{
+				foreach (AudioClipData clip in category.Clips)
+				{
+					if (clip.ClipId == clipId)
+					{
+						return clip;
+					}
+				}
+			}
+
+			Debug.Assert(false);
+			return null;
+		}
+
+		public void LoadClipsForCategory(string categoryId, Action onLoaded = null)
+		{
+			AudioCategory category = GetCategoryById(categoryId);
+			if (category == null)
+			{
+				Debug.LogError("Tried to load a category that doesn't exist: " + categoryId);
+				onLoaded?.Invoke();
+				return;
+			}
+
+			if (_categoriesLoaded.Contains(categoryId))
+			{
+				Debug.LogWarning("Trying to load an already loaded category: " + categoryId);
+				onLoaded?.Invoke();
+				return;
+			}
+
+			int tasks = 0;
+			foreach (AudioClipData clip in category.Clips)
+			{
+				if (clip.ReferencedClip.Asset != null)
+				{
+					tasks++;
+					if (tasks == category.Clips.Count)
+					{
+						_categoriesLoaded.Add(categoryId);
+						onLoaded?.Invoke();
+					}
+
+					continue;
+				}
+
+				clip.ReferencedClip.LoadAssetAsync().Completed +=
+					h =>
+					{
+						++tasks;
+						if (tasks == category.Clips.Count)
+						{
+							_categoriesLoaded.Add(categoryId);
+							onLoaded?.Invoke();
+						}
+					};
+			}
+		}
+
+		public void UnloadClipsForCategory(string categoryId)
+		{
+			AudioCategory category = GetCategoryById(categoryId);
+			if (category == null)
+			{
+				Debug.LogWarning("Tried to unload a category that doesn't exist: " + categoryId);
+				return;
+			}
+
+			if (!_categoriesLoaded.Contains(categoryId))
+			{
+				Debug.LogWarning("Trying to unload a non loaded category: " + categoryId);
+				return;
+			}
+
+			foreach (AudioClipData audioClipData in category.Clips)
+			{
+				audioClipData.ReferencedClip.ReleaseAsset();
+			}
+
+			_categoriesLoaded.Remove(categoryId);
+		}
+
+		public AudioCategory GetCategoryById(string categoryId)
+		{
+			foreach (AudioCategory category in _categories)
+			{
+				if (categoryId.Equals(category.Id))
+				{
+					return category;
+				}
+			}
+
+			return null;
+		}
+
+		public void Reset()
+		{
+			foreach (AudioCategory category in _categories)
+			{
+				foreach (AudioClipData clip in category.Clips)
+				{
+					if (clip.ReferencedClip.Asset != null)
+						clip.ReferencedClip.ReleaseAsset();
+				}
+			}
+
+			_categoriesLoaded.Clear();
+		}
+
+		internal class UpdateRunner: MonoBehaviour
+		{
+			public Action<float> OnUpdate    = t => { };
+			public Action        OnDestroyed = () => { };
+			private void Update() => OnUpdate(Time.deltaTime);
+
+			private void OnDestroy() => OnDestroyed();
+		}
+	}
 }

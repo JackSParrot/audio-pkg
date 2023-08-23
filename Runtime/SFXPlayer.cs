@@ -1,177 +1,143 @@
 using UnityEngine;
 using System.Collections.Generic;
 using System;
-using System.IO;
 using UnityEngine.Audio;
 
-namespace JackSParrot.Audio
+namespace JackSParrot.Services.Audio
 {
-    public class SfxPlayer : IDisposable
-    {
-        float _volume = 1f;
-        public float Volume
-        {
-            get => _volume;
-            set
-            {
-                _volume = Mathf.Clamp(value, 0.0001f, 1f);
-                _outputMixerGroup.audioMixer.SetFloat("sfxVolume", Mathf.Log10(_volume) * 20f);
-            }
-        }
+	public class SfxPlayer: IDisposable
+	{
+		float volume = 1f;
+		public float Volume
+		{
+			get => volume;
+			set
+			{
+				volume = Mathf.Clamp(value, 0.0001f, 1f);
+				outputMixerGroup.audioMixer.SetFloat("sfxVolume", Mathf.Log10(volume) * 20f);
+				PlayerPrefs.SetFloat("SfxVolume", volume);
+			}
+		}
 
-        int                               _idGenerator      = 0;
-        AudioClipsStorer                  _clipStorer       = null;
-        AudioMixerGroup                   _outputMixerGroup = null;
-        List<AudioClipHandler>            _handlers         = new List<AudioClipHandler>();
-        private AudioService.UpdateRunner _updateRunner     = null;
-        Dictionary<AudioClipData, int>    _loadedClips      = new Dictionary<AudioClipData, int>();
+		int                    idGenerator      = 0;
+		AudioService           service          = null;
+		AudioMixerGroup        outputMixerGroup = null;
+		List<AudioClipHandler> handlers         = new List<AudioClipHandler>();
 
 
-        internal SfxPlayer(AudioClipsStorer clipsStorer, AudioMixerGroup outputGroup,
-            AudioService.UpdateRunner updateRunner)
-        {
-            _outputMixerGroup = outputGroup;
-            _updateRunner = updateRunner;
-            _updateRunner.OnUpdate = Update;
-            _clipStorer = clipsStorer;
-            for (int i = 0; i < 10; ++i)
-            {
-                CreateHandler();
-            }
-        }
+		internal SfxPlayer(AudioService service, AudioMixerGroup outputGroup)
+		{
+			outputMixerGroup = outputGroup;
+			this.service = service;
+			for (int i = 0; i < 10; ++i)
+			{
+				CreateHandler();
+			}
+		}
 
-        public void Update(float deltaTime)
-        {
-            foreach (var handler in _handlers)
-            {
-                if (handler.IsAlive)
-                {
-                    handler.UpdateHandler(deltaTime);
-                    if (!handler.IsAlive)
-                    {
-                        StopPlaying(handler);
-                    }
-                }
-            }
-        }
+		AudioClipHandler CreateHandler()
+		{
+			AudioClipHandler newHandler = new GameObject("sfx_handler").AddComponent<AudioClipHandler>();
+			newHandler.ResetHandler();
+			handlers.Add(newHandler);
+			newHandler.Id = idGenerator++;
+			newHandler.SetOutput(outputMixerGroup);
+			UnityEngine.Object.DontDestroyOnLoad(newHandler.gameObject);
+			return newHandler;
+		}
 
-        public void ReleaseReferenceCache()
-        {
-            foreach (var kvp in _loadedClips)
-            {
-                if (kvp.Value < 1)
-                {
-                    if (kvp.Key.ReferencedClip.Asset != null && kvp.Key.AutoRelease)
-                    {
-                        kvp.Key.ReferencedClip.ReleaseAsset();
-                    }
-                }
-            }
-        }
+		AudioClipHandler GetFreeHandler()
+		{
+			foreach (AudioClipHandler handler in handlers)
+			{
+				if (!handler.IsAlive)
+				{
+					handler.ResetHandler();
+					handler.Id = idGenerator++;
+					return handler;
+				}
+			}
 
-        AudioClipHandler CreateHandler()
-        {
-            var newHandler = new GameObject("sfx_handler").AddComponent<AudioClipHandler>();
-            newHandler.ResetHandler();
-            _handlers.Add(newHandler);
-            newHandler.Id = _idGenerator++;
-            newHandler.SetOutput(_outputMixerGroup);
-            UnityEngine.Object.DontDestroyOnLoad(newHandler.gameObject);
-            return newHandler;
-        }
+			return CreateHandler();
+		}
 
-        AudioClipHandler GetFreeHandler()
-        {
-            foreach (var handler in _handlers)
-            {
-                if (!handler.IsAlive)
-                {
-                    handler.Id = _idGenerator++;
-                    return handler;
-                }
-            }
+		AudioClipData GetClipToPlay(ClipId clipId)
+		{
+			return service.GetClipById(clipId);
+		}
 
-            return CreateHandler();
-        }
+		public int Play(ClipId clipId)
+		{
+			AudioClipHandler handler = GetFreeHandler();
+			handler.Play(GetClipToPlay(clipId));
+			return handler.Id;
+		}
 
-        AudioClipData GetClipToPlay(ClipId clipId)
-        {
-            foreach (var kvp in _loadedClips)
-            {
-                if (kvp.Key.ClipId == clipId)
-                {
-                    _loadedClips[kvp.Key] += 1;
-                    return kvp.Key;
-                }
-            }
+		public int Play(ClipId clipId, float volume)
+		{
+			AudioClipHandler handler = GetFreeHandler();
+			handler.Play(GetClipToPlay(clipId), volume);
+			return handler.Id;
+		}
 
-            var sfx = _clipStorer.GetClipById(clipId);
-            _loadedClips.Add(sfx, 1);
-            return sfx;
-        }
+		public int Play(ClipId clipId, Transform toFollow)
+		{
+			AudioClipHandler handler = GetFreeHandler();
+			handler.Play(GetClipToPlay(clipId), toFollow);
+			return handler.Id;
+		}
 
-        void ReleasePlayingClip(AudioClipData clip)
-        {
-            if (clip != null && _loadedClips.ContainsKey(clip))
-            {
-                _loadedClips[clip] = Mathf.Max(0, _loadedClips[clip]);
-            }
-        }
+		public int Play(ClipId clipId, Vector3 at)
+		{
+			AudioClipHandler handler = GetFreeHandler();
+			handler.Play(GetClipToPlay(clipId), at);
+			return handler.Id;
+		}
 
-        public int Play(ClipId clipId)
-        {
-            var handler = GetFreeHandler();
-            handler.Play(GetClipToPlay(clipId));
-            return handler.Id;
-        }
+		public void StopPlayingAll()
+		{
+			handlers.ForEach(StopPlaying);
+		}
 
-        public int Play(ClipId clipId, Transform toFollow)
-        {
-            var handler = GetFreeHandler();
-            handler.Play(GetClipToPlay(clipId), toFollow);
-            return handler.Id;
-        }
+		public void StopPlaying(int id)
+		{
+			foreach (AudioClipHandler handler in handlers)
+			{
+				if (handler.IsAlive && handler.Id == id)
+				{
+					StopPlaying(handler);
+				}
+			}
+		}
 
-        public int Play(ClipId clipId, Vector3 at)
-        {
-            var handler = GetFreeHandler();
-            handler.Play(GetClipToPlay(clipId), at);
-            return handler.Id;
-        }
+		public void UpdatePlayingClipVolume(int id, float newVolume)
+		{
+			newVolume = Mathf.Clamp(newVolume, 0.0001f, 1f);
+			foreach (AudioClipHandler handler in handlers)
+			{
+				if (handler.IsAlive && handler.Id == id)
+				{
+					handler.UpdateVolume(newVolume);
+				}
+			}
+		}
 
-        public void StopPlaying(int id)
-        {
-            foreach (var handler in _handlers)
-            {
-                if (handler.Id == id)
-                {
-                    StopPlaying(handler);
-                }
-            }
-        }
+		void StopPlaying(AudioClipHandler handler)
+		{
+			handler.ResetHandler();
+		}
 
-        void StopPlaying(AudioClipHandler handler)
-        {
-            ReleasePlayingClip(handler.Data);
-            handler.ResetHandler();
-        }
+		public void Dispose()
+		{
+			foreach (AudioClipHandler handler in handlers)
+			{
+				if (handler != null)
+				{
+					UnityEngine.Object.Destroy(handler.gameObject);
+				}
+			}
 
-        public void Dispose()
-        {
-            if (_updateRunner != null)
-            {
-                _updateRunner.OnUpdate = t => { };
-            }
-
-            foreach (var handler in _handlers)
-            {
-                if (handler != null)
-                {
-                    UnityEngine.Object.Destroy(handler.gameObject);
-                }
-            }
-
-            _handlers.Clear();
-        }
-    }
+			handlers.Clear();
+		}
+	}
 }

@@ -1,40 +1,32 @@
 ﻿using System.Collections;
 using UnityEngine;
-#if UNITY_EDITOR
-using JackSParrot.Audio.Editor;
-using UnityEditor;
 
-#endif
-
-namespace JackSParrot.Audio
+namespace JackSParrot.Services.Audio
 {
     public abstract class AAudioPlayerBehaviour : MonoBehaviour
     {
-        [SerializeField]
-        protected AudioClipsStorer _clipsStorer;
-
         [Header("Play data")]
         [SerializeField]
-        protected ClipId _clipId;
+        protected ClipId clipId;
 
         [SerializeField]
-        protected bool _playOnEnable = true;
+        protected bool playOnEnable = true;
 
         [SerializeField]
-        protected bool _stopOnDisable = false;
-
-        protected AudioService _audioService = null;
+        protected bool stopOnDisable = false;
+        
+        protected AudioService audioService = null;
 
         public void Play()
         {
-            if (_audioService == null)
+            if (audioService == null)
             {
                 StopAllCoroutines();
                 StartCoroutine(WaitForServiceCoroutine());
                 return;
             }
 
-            if (!_clipId.IsValid())
+            if (!clipId.IsValid())
             {
                 Debug.LogWarning("Tried to play a sound clip not set");
                 return;
@@ -45,11 +37,10 @@ namespace JackSParrot.Audio
 
         IEnumerator WaitForServiceCoroutine()
         {
-            yield return null;
-            _audioService = _clipsStorer.AudioService;
-            if (_audioService == null)
+            while (audioService == null)
             {
-                _audioService = new AudioService(_clipsStorer);
+                yield return null;
+                audioService = ServiceLocator.GetService<AudioService>();
             }
 
             Play();
@@ -61,7 +52,7 @@ namespace JackSParrot.Audio
 
         private void OnEnable()
         {
-            if (_playOnEnable)
+            if (playOnEnable)
             {
                 Play();
             }
@@ -69,18 +60,10 @@ namespace JackSParrot.Audio
 
         private void OnDisable()
         {
-            if (_stopOnDisable)
+            if (stopOnDisable)
             {
                 Stop();
             }
-        }
-
-        private void OnValidate()
-        {
-#if UNITY_EDITOR
-            _clipsStorer = EditorUtils.GetOrCreateAudioClipsStorer();
-            EditorUtility.SetDirty(gameObject);
-#endif
         }
     }
 }

@@ -1,8 +1,9 @@
 using System;
+using JackSParrot.AddressablesEssentials;
 using UnityEngine;
 using UnityEngine.Audio;
 
-namespace JackSParrot.Audio
+namespace JackSParrot.Services
 {
     public class AudioClipHandler : MonoBehaviour
     {
@@ -11,125 +12,150 @@ namespace JackSParrot.Audio
         [NonSerialized]
         public AudioClipData Data = null;
 
-        public bool IsAlive => _elapsed < _duration || _looping;
+        public bool IsAlive = false;
 
-        Transform    _toFollow = null;
-        Transform    _transform;
-        AudioSource  _source            = null;
-        float        _elapsed           = 0f;
-        float        _duration          = 0f;
-        bool         _looping           = false;
-        private bool _isFollowingTarget = false;
+        Transform    toFollow = null;
+        Transform    audioTransform;
+        AudioSource  source            = null;
+        float        elapsed           = 0f;
+        float        duration          = 0f;
+        bool         looping           = false;
+        private bool isFollowingTarget = false;
+
+        private GameObject requester   = null;
+        private bool       isDestroyed = false;
 
         void Awake()
         {
-            _transform = transform;
-            if (_source == null)
+            audioTransform = transform;
+            if (source == null)
             {
-                _source = gameObject.AddComponent<AudioSource>();
+                source = gameObject.AddComponent<AudioSource>();
             }
+        }
+
+        private void OnDestroy()
+        {
+            isDestroyed = true;
+            IsAlive = false;
         }
 
         public void ResetHandler()
         {
+            if (isDestroyed)
+                return;
+
             Data = null;
-            _source.Stop();
-            _looping = false;
-            _elapsed = 0f;
-            _duration = 0f;
-            _toFollow = null;
-            _isFollowingTarget = false;
-            _transform.localPosition = Vector3.zero;
+            elapsed = 0f;
+            duration = 0f;
+            source.Stop();
+            toFollow = null;
+            looping = false;
+            IsAlive = false;
+            isFollowingTarget = false;
             gameObject.SetActive(false);
-            Id = -1;
+            audioTransform.localPosition = Vector3.zero;
+
+            if (requester != null)
+            {
+                Destroy(requester);
+                requester = null;
+            }
         }
 
         public void SetOutput(AudioMixerGroup mixerGroup)
         {
-            _source.outputAudioMixerGroup = mixerGroup;
+            source.outputAudioMixerGroup = mixerGroup;
         }
 
-        public void UpdateHandler(float deltaTime)
+        private void Update()
         {
-            _elapsed += deltaTime;
-            if (!_isFollowingTarget)
+            if (!IsAlive)
+                return;
+
+            elapsed += Time.deltaTime;
+            if (elapsed >= duration && !looping)
             {
+                ResetHandler();
                 return;
             }
 
-            if (_toFollow != null)
+            if (isFollowingTarget && toFollow != null)
             {
-                _transform.position = _toFollow.position;
-                return;
+                audioTransform.position = toFollow.position;
             }
-
-            _elapsed = _duration;
-            _looping = false;
-            _source.Stop();
         }
 
-        public void Play(AudioClipData data)
+        public void Play(AudioClipData data, float volumeModifier = 1.0f)
         {
             Data = data;
-            _duration = 9999f;
-            _source.spatialBlend = 0f;
+            duration = 9999f;
+            IsAlive = true;
+
             gameObject.name = Data.ClipId;
-            _source.volume = Data.Volume;
-            _source.pitch = Data.Pitch;
-            _source.loop = Data.Loop;
-            _looping = Data.Loop;
-            
+            source.volume = Data.Volume * volumeModifier;
+
+            source.pitch = Data.Pitch;
+            source.loop = Data.Loop;
+            source.spatialBlend = 0f;
+            toFollow = null;
+            looping = Data.Loop;
+
+            if (requester != null)
+            {
+                Destroy(requester);
+            }
+
             if (data.ReferencedClip.Asset != null)
             {
                 OnLoaded(data.ReferencedClip.Asset as AudioClip);
                 return;
             }
 
-            if (data.ReferencedClip.OperationHandle.IsValid())
-            {
-                if (data.ReferencedClip.OperationHandle.IsDone)
-                {
-                    OnLoaded(data.ReferencedClip.OperationHandle.Result as AudioClip);
-                    return;
-                }
+            requester = new GameObject("audioRequester");
+            requester.transform.SetParent(transform);
 
-                data.ReferencedClip.OperationHandle.Completed += h => OnLoaded(h.Result as AudioClip);
+            AddressableAssetsUtility.LoadAsset<AudioClip>(data.ReferencedClip, requester, OnLoaded);
+        }
 
-                return;
-            }
-
-            data.ReferencedClip.LoadAssetAsync<AudioClip>().Completed += h => OnLoaded(h.Result);
+        public void UpdateVolume(float volume)
+        {
+            source.volume = volume * Data.Volume;
         }
 
         void OnLoaded(AudioClip clip)
         {
             if (clip == null)
             {
+                IsAlive = false;
                 Debug.Assert(false);
                 return;
             }
 
+            // this is important to avoid updating before loading the clip
             gameObject.SetActive(true);
-            _source.clip = clip;
-            _source.Play();
-            _toFollow = null;
-            _duration = clip.length;
+
+            // 0.1f is added to the duration, as very short clips can be cut otherwise
+            duration = clip.length + 0.1f;
+            elapsed = 0f;
+            source.clip = clip;
+            source.Play();
         }
 
         public void Play(AudioClipData data, Vector3 position)
         {
             Play(data);
-            _source.spatialBlend = 1f;
-            _transform.position = position;
+            source.spatialBlend = 1f;
+            audioTransform.position = position;
         }
 
         public void Play(AudioClipData data, Transform parent)
         {
             Play(data);
-            _source.spatialBlend = 1f;
-            _transform.position = parent.position;
-            _toFollow = parent;
-            _isFollowingTarget = true;
+            source.spatialBlend = 1f;
+            audioTransform.position = parent.position;
+            toFollow = parent;
+            isFollowingTarget = true;
         }
     }
 }

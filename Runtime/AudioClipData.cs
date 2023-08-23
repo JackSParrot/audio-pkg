@@ -11,6 +11,5 @@ public class AudioClipData
     public float Volume = 1f;
     [Range(.3f, 3f)]
     public float Pitch = 1f;
-    public bool Loop        = false;
-    public bool AutoRelease = false;
+    public bool Loop = false;
 }

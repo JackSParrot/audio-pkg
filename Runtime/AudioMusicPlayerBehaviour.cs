@@ -1,39 +1,41 @@
 ﻿using UnityEngine;
 
-namespace JackSParrot.Audio
+namespace JackSParrot.Services.Audio
 {
     public class AudioMusicPlayerBehaviour : AAudioPlayerBehaviour
     {
         [Header("Music settings")]
         [SerializeField]
-        private float _changeMusicCrossfadeSeconds = 0f;
+        private float changeMusicCrossfadeSeconds = 0f;
         [SerializeField]
-        private float _fadeInSeconds = 0f;
+        private float fadeOutSeconds = 0f;
         [SerializeField]
-        private float _fadeOutSeconds = 0f;
+        private float fadeInSeconds = 0f;
 
         private bool  _playing = false;
         private float _delay   = 0f;
 
+        public bool Playing => _playing;
+
         protected override void DoPlay()
         {
             _playing = true;
-            if (_audioService?.Music?.PlayingClipId == "")
+            if (string.IsNullOrEmpty(audioService?.Music?.PlayingClipId))
             {
-                _delay = _fadeInSeconds;
-                _audioService?.PlayMusic(_clipId, _fadeInSeconds);
+                _delay = fadeInSeconds;
+                audioService?.PlayMusic(clipId, fadeInSeconds);
                 return;
             }
 
-            _delay = _changeMusicCrossfadeSeconds;
-            _audioService?.CrossFadeMusic(_clipId, _changeMusicCrossfadeSeconds);
+            _delay = changeMusicCrossfadeSeconds;
+            audioService?.CrossFadeMusic(clipId, changeMusicCrossfadeSeconds);
         }
 
         public override void Stop()
         {
-            if (_audioService?.Music.PlayingClipId == _clipId)
+            if (audioService?.Music.PlayingClipId == clipId)
             {
-                _audioService?.StopMusic(_fadeOutSeconds);
+                audioService?.StopMusic(fadeOutSeconds);
             }
 
             _playing = false;
@@ -47,7 +49,7 @@ namespace JackSParrot.Audio
                 return;
             }
 
-            if (_playing && _audioService?.Music?.PlayingClipId != _clipId)
+            if (_playing && audioService?.Music?.PlayingClipId != clipId)
             {
                 gameObject.SetActive(false);
                 _playing = false;

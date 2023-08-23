@@ -1,83 +1,72 @@
 ﻿using System.Collections.Generic;
 using UnityEngine;
-#if UNITY_EDITOR
-using JackSParrot.Audio.Editor;
-using UnityEditor;
 
-#endif
-
-namespace JackSParrot.Audio
+namespace JackSParrot.Services.Audio
 {
-    public class AudioClipsCategoryLoader : MonoBehaviour
-    {
-        [SerializeField]
-        private AudioClipsStorer _clipsStorer;
+	public class AudioClipsCategoryLoader: MonoBehaviour
+	{
+		[SerializeField]
+		private List<string> categoriesToLoad = new List<string>();
+		[SerializeField]
+		private bool loadOnEnable = true;
+		[SerializeField]
+		private bool unloadOnDisable = true;
 
-        [SerializeField]
-        private List<string> _categoriesToLoad = new List<string>();
+		private AudioService _service;
 
-        [SerializeField]
-        private bool _loadOnEnable = true;
+		public IReadOnlyList<string> CategoriesToLoad => categoriesToLoad;
 
-        [SerializeField]
-        private bool _unloadOnDisable = true;
+		private bool _loaded = false;
 
-        public IReadOnlyList<string> CategoriesToLoad => _categoriesToLoad;
+		public void Load()
+		{
+			if (_loaded)
+			{
+				return;
+			}
 
-        private bool _loaded = false;
+			foreach (string category in categoriesToLoad)
+			{
+				_service.LoadClipsForCategory(category);
+			}
 
-        public void Load()
-        {
-            if (_loaded)
-            {
-                return;
-            }
+			_loaded = true;
+		}
 
-            foreach (string category in _categoriesToLoad)
-            {
-                _clipsStorer.LoadClipsForCategory(category);
-            }
+		public void Unload()
+		{
+			if (!_loaded)
+			{
+				return;
+			}
 
-            _loaded = true;
-        }
+			foreach (string category in categoriesToLoad)
+			{
+				_service.UnloadClipsForCategory(category);
+			}
 
-        public void Unload()
-        {
-            if (!_loaded)
-            {
-                return;
-            }
+			_loaded = false;
+		}
 
-            foreach (string category in _categoriesToLoad)
-            {
-                _clipsStorer.UnloadClipsForCategory(category);
-            }
+		private void OnEnable()
+		{
+			if (_service == null)
+			{
+				_service = ServiceLocator.GetService<AudioService>();
+			}
 
-            _loaded = false;
-        }
+			if (loadOnEnable)
+			{
+				Load();
+			}
+		}
 
-        private void OnEnable()
-        {
-            if (_loadOnEnable)
-            {
-                Load();
-            }
-        }
-
-        private void OnDisable()
-        {
-            if (_unloadOnDisable)
-            {
-                Unload();
-            }
-        }
-
-        private void OnValidate()
-        {
-#if UNITY_EDITOR
-            _clipsStorer = EditorUtils.GetOrCreateAudioClipsStorer();
-            EditorUtility.SetDirty(gameObject);
-#endif
-        }
-    }
+		private void OnDisable()
+		{
+			if (unloadOnDisable)
+			{
+				Unload();
+			}
+		}
+	}
 }

@@ -1,10 +1,13 @@
 {
-    "name": "JackSParrotAudio.Editor",
+    "name": "JackSParrot.Services.AudioService.Editor",
     "rootNamespace": "",
     "references": [
-        "GUID:d16e1f00cd6c5114a980183cf9421e7c"
+        "GUID:3baaaa05f0df08f408189c553fa984eb",
+        "GUID:c8348b3ca46e56c479ae673316dc14fe"
     ],
-    "includePlatforms": [],
+    "includePlatforms": [
+        "Editor"
+    ],
     "excludePlatforms": [],
     "allowUnsafeCode": false,
     "overrideReferences": false,

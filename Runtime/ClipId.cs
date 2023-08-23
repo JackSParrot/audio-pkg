@@ -1,7 +1,7 @@
 ﻿using System;
 using UnityEngine;
 
-namespace JackSParrot.Audio
+namespace JackSParrot.Services.Audio
 {
     [System.Serializable]
     public class ClipId : IEquatable<ClipId>
