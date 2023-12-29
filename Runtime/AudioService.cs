@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Collections;
 using System.Collections.Generic;
-using JackSParrot.Utils;
+using UnityEditor.VersionControl;
 using UnityEngine;
 using UnityEngine.Audio;
 
@@ -86,8 +86,8 @@ namespace JackSParrot.Services.Audio
 			yield return null;
 		}
 
-		public void PlayMusic(ClipId clipId, float fadeInSeconds) => musicPlayer.Play(clipId, fadeInSeconds);
-		public void StopMusic(float fadeOutSeconds) => musicPlayer.Stop(fadeOutSeconds);
+		public void PlayMusic(ClipId clipId, float fadeInSeconds = 1f) => musicPlayer.Play(clipId, fadeInSeconds);
+		public void StopMusic(float fadeOutSeconds = 1f) => musicPlayer.Stop(fadeOutSeconds);
 
 		public void CrossFadeMusic(ClipId clipId, float duration = 0.3f) => musicPlayer.CrossFade(clipId, duration);
 
@@ -228,6 +228,51 @@ namespace JackSParrot.Services.Audio
 
 			_categoriesLoaded.Clear();
 		}
+
+		#if UNITY_EDITOR
+		private AudioSource _source;
+
+		public bool IsPreviewReady => _source != null;
+		
+		public void PreparePreview()
+		{
+			_source = new GameObject().AddComponent<AudioSource>();
+		}
+
+		public async System.Threading.Tasks.Task PlayPreview(Func<AudioClipData> getData)
+		{
+			if (!IsPreviewReady)
+				return;
+			
+			AudioClipData clip = getData();
+			_source.clip   = clip.ReferencedClip.editorAsset;
+			_source.volume = clip.Volume;
+			_source.Play();
+			int remaining = (int)(_source.clip.length * 1000);
+			while (remaining > 0 && _source != null && _source.isPlaying)
+			{
+				clip           = getData();
+				_source.volume = clip.Volume;
+				_source.pitch  = clip.Pitch;
+				await System.Threading.Tasks.Task.Delay(50);
+				remaining -= 50;
+			}
+		}
+
+		public void StopPreview()
+		{
+			if(_source != null) _source.Stop();
+		}
+
+		public void DisposePreview()
+		{
+			if (!IsPreviewReady)
+				return;
+			
+			DestroyImmediate(_source.gameObject);
+			_source = null;
+		}
+		#endif
 
 		internal class UpdateRunner: MonoBehaviour
 		{

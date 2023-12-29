@@ -37,7 +37,7 @@ namespace JackSParrot.Services.Audio
 
         IEnumerator WaitForServiceCoroutine()
         {
-            while (audioService == null)
+            while (audioService == null || audioService.Status != EServiceStatus.Initialized)
             {
                 yield return null;
                 audioService = ServiceLocator.GetService<AudioService>();

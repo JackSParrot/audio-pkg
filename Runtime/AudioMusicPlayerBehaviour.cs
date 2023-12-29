@@ -20,22 +20,22 @@ namespace JackSParrot.Services.Audio
         protected override void DoPlay()
         {
             _playing = true;
-            if (string.IsNullOrEmpty(audioService?.Music?.PlayingClipId))
+            if (!string.IsNullOrEmpty(audioService.Music.PlayingClipId))
             {
                 _delay = fadeInSeconds;
-                audioService?.PlayMusic(clipId, fadeInSeconds);
+                audioService.PlayMusic(clipId, fadeInSeconds);
                 return;
             }
 
             _delay = changeMusicCrossfadeSeconds;
-            audioService?.CrossFadeMusic(clipId, changeMusicCrossfadeSeconds);
+            audioService.CrossFadeMusic(clipId, changeMusicCrossfadeSeconds);
         }
 
         public override void Stop()
         {
-            if (audioService?.Music.PlayingClipId == clipId)
+            if (audioService.Music.PlayingClipId == clipId)
             {
-                audioService?.StopMusic(fadeOutSeconds);
+                audioService.StopMusic(fadeOutSeconds);
             }
 
             _playing = false;
@@ -43,13 +43,15 @@ namespace JackSParrot.Services.Audio
 
         private void Update()
         {
+            if (audioService == null || audioService.Status != EServiceStatus.Initialized)
+                return;
             _delay -= Time.deltaTime;
             if (_delay > 0f)
             {
                 return;
             }
 
-            if (_playing && audioService?.Music?.PlayingClipId != clipId)
+            if (_playing && audioService.Music.PlayingClipId != null && audioService.Music.PlayingClipId != clipId)
             {
                 gameObject.SetActive(false);
                 _playing = false;
